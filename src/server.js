@@ -1,8 +1,9 @@
 
 import 'dotenv/config';
-import app from './app.js';
+import { app, server } from './app.js';
 import connectDB from './config/database.js';
 import User from './models/user.model.js';
+import initializeSocketIO from './socket.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -53,7 +54,10 @@ const startServer = async () => {
     await connectDB();
     await createSuperAdmin();
 
-    app.listen(PORT, () => {
+    const io = initializeSocketIO(server);
+    app.set('io', io);
+
+    server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
   } catch (error) {
