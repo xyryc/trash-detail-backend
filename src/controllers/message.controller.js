@@ -3,11 +3,11 @@ import catchAsync from '../utils/catchAsync.js';
 import ApiError from '../utils/ApiError.js';
 
 export const createMessage = catchAsync(async (req, res, next) => {
-  const { chatType, problemId, supportId, recipientId, message } = req.body;
+  const { chatType, problemId, supportId, message } = req.body;
   const senderId = req.user._id;
 
-  if (!chatType || !recipientId || !message) {
-    return next(new ApiError(400, 'Please provide chatType, recipientId, and message'));
+  if (!chatType || !message) {
+    return next(new ApiError(400, 'Please provide chatType and message'));
   }
 
   if (chatType === 'problem' && !problemId) {
@@ -23,7 +23,6 @@ export const createMessage = catchAsync(async (req, res, next) => {
     problemId, 
     supportId, 
     senderId, 
-    recipientId, 
     message 
   });
 
@@ -56,19 +55,15 @@ export const getMessages = catchAsync(async (req, res, next) => {
   });
 });
 
-export const markMessagesAsRead = catchAsync(async (req, res, next) => {
-  const { messageIds } = req.body;
-  const recipientId = req.user._id; // The user who is marking messages as read
+export const markMessageAsRead = catchAsync(async (req, res, next) => {
+  const { messageId } = req.params;
+  const userId = req.user._id;
 
-  if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
-    return next(new ApiError(400, 'Please provide an array of messageIds'));
-  }
-
-  const result = await messageService.markMessagesAsRead(messageIds, recipientId);
+  const result = await messageService.markMessageAsRead(messageId, userId);
 
   res.status(200).json({
     success: true,
-    message: `${result.modifiedCount} messages marked as read`,
+    message: `Message marked as read`,
     data: result,
   });
 });

@@ -14,7 +14,7 @@ export const createSupport = async (supportBody) => {
  * @returns {Promise<Support[]>}
  */
 export const getAllSupports = async () => {
-  return Support.find().sort({ createdAt: -1 });
+  return Support.find().populate('createdBy', 'name email').sort({ createdAt: -1 });
 };
 
 /**
@@ -23,5 +23,5 @@ export const getAllSupports = async () => {
  * @returns {Promise<Support>}
  */
 export const getSupportById = async (supportId) => {
-  return Support.findById(supportId);
+  return Support.findById(supportId).populate('createdBy', 'name email');
 };

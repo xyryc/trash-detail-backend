@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
+import sendEmail from '../utils/sendEmail.js';
+import bcrypt from 'bcryptjs';
 
 const generateToken = (payload, secret, expiresIn) => {
   return jwt.sign(payload, secret, { expiresIn });
@@ -59,3 +61,70 @@ export const refreshAuth = async (refreshToken) => {
     throw new ApiError(401, 'Invalid refresh token');
   }
 };
+
+export const forgotPassword = async (email) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Generate 4 digit code
+  const resetCode = Math.floor(1000 + Math.random() * 9000).toString();
+  user.passwordResetCode = resetCode;
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  await user.save({ validateBeforeSave: false });
+
+  // Send email
+  const message = `Your password reset code is: ${resetCode}`;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Password reset code',
+      html: message,
+    });
+  } catch (err) {
+    console.log(err);
+    user.passwordResetCode = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(500, 'Email could not be sent');
+  }
+};
+
+export const resetPassword = async (email, password) => {
+  const user = await User.findOne({
+    email,
+    passwordResetVerified: true,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(400, 'Password reset not initiated or code expired');
+  }
+
+  const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+  user.passwordResetCode = undefined;
+  user.passwordResetExpires = undefined;
+  user.passwordResetVerified = false;
+  await user.save();
+};
+
+export const verifyResetCode = async (code) => {
+  const user = await User.findOne({
+    passwordResetCode: code,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(400, 'Code is invalid or has expired');
+  }
+
+  user.passwordResetVerified = true;
+  await user.save({ validateBeforeSave: false });
+
+  return { success: true, message: 'Code verified successfully' };
+};
+""

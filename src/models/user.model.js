@@ -51,6 +51,16 @@ const userSchema = new mongoose.Schema({
   zipCode: {
     type: String,
   },
+  passwordResetCode: {
+    type: String,
+  },
+  passwordResetExpires: {
+    type: Date,
+  },
+  passwordResetVerified: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now

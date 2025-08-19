@@ -45,7 +45,7 @@ const problemSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'forwarded', 'cancelled'],
+    enum: ['pending', 'forwarded', 'cancelled', 'closed'],
     default: 'pending'
   },
   reportedDate: {

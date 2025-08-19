@@ -1,0 +1,227 @@
+<!-- C:\Users\mahid\Desktop\Project\SocketIo\frontend\public\index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Client</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 80%; max-width: 800px; margin-top: 20px; }
+        .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        input, select, textarea, button { padding: 8px; margin: 5px 0; border-radius: 3px; border: 1px solid #ddd; }
+        button { cursor: pointer; background-color: #007bff; color: white; border: none; }
+        #chat-history { height: 300px; overflow-y: scroll; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; }
+        .message { background-color: #f1f1f1; padding: 10px; border-radius: 5px; margin-bottom: 5px; }
+        .error { color: red; }
+        .status { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Authentication Section -->
+        <div class="section">
+            <h2>Authentication</h2>
+            <input type="text" id="jwt-token" placeholder="Enter JWT Token">
+            <input type="text" id="sender-id" placeholder="Enter Your Sender ID">
+            <button id="connect-btn">Connect</button>
+            <div id="connection-status">Status: Not Connected</div>
+        </div>
+
+        <!-- Join Room Section -->
+        <div class="section">
+            <h2>Join Chat Room</h2>
+            <select id="chat-type">
+                <option value="problem">Problem</option>
+                <option value="support">Support</option>
+            </select>
+            <input type="text" id="room-id" placeholder="Problem ID or Support ID">
+            <button id="join-room-btn">Join Room</button>
+            <div id="joined-room"></div>
+        </div>
+
+        <!-- Problem/Customer Info Section -->
+        <div class="section" id="info-section" style="display:none;">
+            <h2>Conversation Details</h2>
+            <p><strong>Problem Title:</strong> <span id="problem-title"></span></p>
+            <p><strong>Problem ID:</strong> <span id="problem-display-id"></span></p>
+            <p><strong>Customer Name:</strong> <span id="customer-name"></span></p>
+            <p><strong>Customer Email:</strong> <span id="customer-email"></span></p>
+        </div>
+
+        <!-- Send Message Section -->
+        <div class="section">
+            <h2>Send Message</h2>
+            <textarea id="message-input" placeholder="Type your message..."></textarea>
+            <button id="send-message-btn">Send</button>
+        </div>
+
+        <!-- Chat History Section -->
+        <div class="section">
+            <h2>Chat History</h2>
+            <div id="chat-history"></div>
+        </div>
+
+        <!-- Error Display -->
+        <div id="error-message" class="error"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const connectBtn = document.getElementById('connect-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const joinRoomBtn = document.getElementById('join-room-btn');
+        const joinedRoom = document.getElementById('joined-room');
+        const sendMessageBtn = document.getElementById('send-message-btn');
+        const chatHistory = document.getElementById('chat-history');
+        const errorMessage = document.getElementById('error-message');
+
+        let socket;
+
+        connectBtn.addEventListener('click', () => {
+            const token = document.getElementById('jwt-token').value;
+            if (!token) {
+                errorMessage.textContent = 'Please enter a JWT token.';
+                return;
+            }
+
+                        socket = io('http://localhost:3001', {
+                auth: {
+                    token: token
+                },
+                transports: ['websocket']
+            });
+
+            socket.on('connect', () => {
+                connectionStatus.textContent = 'Status: Connected';
+                connectionStatus.className = 'status';
+                errorMessage.textContent = '';
+            });
+
+            socket.on('connect_error', (err) => {
+                errorMessage.textContent = `Connection failed: ${err.message}`;
+                connectionStatus.textContent = 'Status: Not Connected';
+                connectionStatus.className = 'error';
+            });
+
+            socket.on('newMessage', (msg) => {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message';
+                // Assuming senderId is populated with name from backend
+                const senderName = msg.senderId ? msg.senderId.name : msg.senderId;
+                messageElement.textContent = `From: ${senderName}: ${msg.message}`;
+                chatHistory.appendChild(messageElement);
+                chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to bottom
+            });
+        });
+
+        joinRoomBtn.addEventListener('click', async () => {
+            if (!socket || !socket.connected) {
+                errorMessage.textContent = 'Please connect first.';
+                return;
+            }
+
+            const chatType = document.getElementById('chat-type').value;
+            const roomId = document.getElementById('room-id').value;
+
+            const payload = { chatType };
+            if (chatType === 'problem') {
+                payload.problemId = roomId;
+            } else {
+                payload.supportId = roomId;
+            }
+
+            socket.emit('joinRoom', payload);
+            joinedRoom.textContent = `Joined room: ${roomId}`;
+
+            // Fetch chat history
+            try {
+                const token = document.getElementById('jwt-token').value;
+                const url = `http://localhost:3001/api/v1/messages/${roomId}?chatType=${chatType}`;
+                console.log(`Fetching chat history from: ${url}`);
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const history = await response.json();
+                console.log('Received chat history:', history);
+
+                chatHistory.innerHTML = ''; // Clear previous history
+                errorMessage.textContent = ''; // Clear any previous error
+
+                // Display Problem and Customer Info
+                const infoSection = document.getElementById('info-section');
+                const problemTitle = document.getElementById('problem-title');
+                const problemDisplayId = document.getElementById('problem-display-id');
+                const customerName = document.getElementById('customer-name');
+                const customerEmail = document.getElementById('customer-email');
+
+                if (history.problemInfo) {
+                    problemTitle.textContent = history.problemInfo.title;
+                    problemDisplayId.textContent = history.problemInfo.id;
+                    infoSection.style.display = 'block';
+                } else {
+                    problemTitle.textContent = 'N/A';
+                    problemDisplayId.textContent = 'N/A';
+                }
+
+                if (history.customerInfo) {
+                    customerName.textContent = history.customerInfo.name;
+                    customerEmail.textContent = history.customerInfo.email;
+                    infoSection.style.display = 'block';
+                } else {
+                    customerName.textContent = 'N/A';
+                    customerEmail.textContent = 'N/A';
+                }
+
+                if (history && Array.isArray(history.messages)) {
+                    history.messages.forEach(msg => {
+                        const messageElement = document.createElement('div');
+                        messageElement.className = 'message';
+                        const senderName = msg.senderId ? msg.senderId.name : msg.senderId;
+                        messageElement.textContent = `From: ${senderName}: ${msg.message}`;
+                        chatHistory.appendChild(messageElement);
+                    });
+                    chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to bottom
+                } else {
+                    errorMessage.textContent = 'Chat history is not in the expected format (object with a messages array).';
+                }
+            } catch (error) {
+                errorMessage.textContent = `Error fetching chat history: ${error.message}`;
+            }
+        });
+
+        sendMessageBtn.addEventListener('click', () => {
+            if (!socket || !socket.connected) {
+                errorMessage.textContent = 'Please connect first.';
+                return;
+            }
+
+             const senderId = document.getElementById('sender-id').value;
+            const message = document.getElementById('message-input').value;
+            const chatType = document.getElementById('chat-type').value;
+            const roomId = document.getElementById('room-id').value;
+
+            const payload = {
+                chatType,
+                senderId,
+                message
+            };
+
+            if (chatType === 'problem') {
+                payload.problemId = roomId;
+            } else {
+                payload.supportId = roomId;
+            }
+
+            socket.emit('sendMessage', payload);
+            document.getElementById('message-input').value = '';
+        });
+
+    </script>
+</body>
+</html>

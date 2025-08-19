@@ -61,3 +61,19 @@ export const updateUser = catchAsync(async (req, res, next) => {
     data: updatedUser,
   });
 });
+
+export const changePassword = catchAsync(async (req, res, next) => {
+  const { newPassword, confirmPassword } = req.body;
+  const userId = req.user._id; // Get user ID from authenticated request
+
+  if (newPassword !== confirmPassword) {
+    return next(new ApiError(400, 'New password and confirm password do not match'));
+  }
+
+  await userService.changePassword(userId, newPassword);
+
+  res.status(200).json({
+    success: true,
+    message: 'Password changed successfully',
+  });
+});

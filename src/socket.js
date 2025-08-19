@@ -7,6 +7,7 @@ const initializeSocketIO = (server) => {
   const io = new Server(server);
 
   io.use(async (socket, next) => {
+  
     try {
       const token = socket.handshake.auth.token; // Or socket.handshake.query.token
       if (!token) {
@@ -45,7 +46,7 @@ const initializeSocketIO = (server) => {
 
     socket.on('sendMessage', async (data) => {
       const { chatType, problemId, supportId, senderId, recipientId, message, imageUrl } = data;
-
+  
       // Authorization check: Ensure senderId matches authenticated user
       if (senderId !== socket.user._id.toString()) {
         console.error('Unauthorized message sender');

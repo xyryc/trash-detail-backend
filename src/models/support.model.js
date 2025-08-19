@@ -15,6 +15,11 @@ const supportSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -24,22 +29,22 @@ const supportSchema = new mongoose.Schema({
 supportSchema.pre('save', async function(next) {
   if (this.isNew) {
     const prefix = 'S';
-    const lastSupport = await this.constructor.findOne(
-      { supportId: { $regex: `^${prefix}\d+` } },
+    
+    // Get all existing problem IDs and extract numbers
+    const existingSupports = await this.constructor.find(
+      { supportId: { $regex: `^${prefix}\\d+$` } },
       { supportId: 1 }
-    ).sort({ supportId: -1 });
+    );
 
-    let nextIdNum = 1;
-    if (lastSupport && lastSupport.supportId) {
-      const lastIdNum = parseInt(lastSupport.supportId.substring(prefix.length));
-      if (!isNaN(lastIdNum)) {
-        nextIdNum = lastIdNum + 1;
+    let maxNumber = 0;
+    existingSupports.forEach(support => {
+      const numberPart = parseInt(support.supportId.replace(prefix, ''));
+      if (!isNaN(numberPart) && numberPart > maxNumber) {
+        maxNumber = numberPart;
       }
-    } else {
-      // If no support found, start from 1
-      nextIdNum = 1;
-    }
-    this.supportId = `${prefix}${nextIdNum}`;
+    });
+
+    this.supportId = `${prefix}${maxNumber + 1}`;
   }
   next();
 });

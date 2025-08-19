@@ -58,6 +58,18 @@ export const createProblem = catchAsync(async (req, res, next) => {
   });
 });
 
+export const getProblemById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const problem = await problemService.getProblemById(id);
+  if (!problem) {
+    return next(new ApiError(404, 'Problem not found'));
+  }
+  res.status(200).json({
+    success: true,
+    data: problem,
+  });
+});
+
 export const updateProblemStatus = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -94,6 +106,18 @@ export const updateProblemStatus = catchAsync(async (req, res, next) => {
     io.to(roomName).emit('newMessage', newMessage);
   }
 
+  // Notify the customer about the status update
+  const customer = await User.findOne({userId: updatedProblem.customerId});
+  if (customer) {
+    await notificationService.createNotification({
+      recipientId: customer._id,
+      senderId: req.user._id, // Assuming the user updating the status is an admin
+      type: 'new_problem',
+      problemId: updatedProblem._id,
+      message: `Your problem #${updatedProblem.problemId} status has been updated to ${status}.`
+    });
+  }
+
   res.status(200).json({
     success: true,
     message: 'Problem status updated successfully',
@@ -116,5 +140,28 @@ export const getMyForwardedProblems = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: problems,
+  });
+});
+
+export const closeProblem = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const updatedProblem = await problemService.updateProblemStatusById(id, 'closed');
+
+  // Notify the customer about the status update
+  const customer = await User.findOne({userId: updatedProblem.customerId});
+  if (customer) {
+    await notificationService.createNotification({
+      recipientId: customer._id,
+      senderId: req.user._id, // Assuming the user updating the status is an admin
+      type: 'problem_closed',
+      problemId: updatedProblem._id,
+      message: `Your problem #${updatedProblem.problemId} has been closed.`
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Problem closed successfully',
+    data: updatedProblem,
   });
 });

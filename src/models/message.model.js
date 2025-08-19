@@ -19,21 +19,16 @@ const messageSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  recipientId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
   message: {
     type: String,
   },
   imageUrl: {
     type: String,
   },
-  read: {
-    type: Boolean,
-    default: false
-  },
+  readBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   createdAt: {
     type: Date,
     default: Date.now
