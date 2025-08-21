@@ -36,6 +36,13 @@ export const getForwardedProblemsByCustomerId = async (customerId) => {
   return Problem.find({ customerId: customerId, status: 'forwarded' }).populate('employeeId', 'name email');
 };
 
+export const updateProblemById= async (problemId, updateData) => {
+  const problem = await Problem.findByIdAndUpdate(problemId, updateData, { new: true });
+  if (!problem) {
+    throw new ApiError(404, 'Problem not found');
+  }
+  return problem;
+}
 /**
  * Update problem status by id
  * @param {String} problemId

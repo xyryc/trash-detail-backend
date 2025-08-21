@@ -186,3 +186,7 @@ export const updateUserById = async (id, updateData) => {
 
   return user;
 };
+
+export const getUsersByRole = async (role) => {
+  return User.find({ role }).select('-password -refreshToken');
+};

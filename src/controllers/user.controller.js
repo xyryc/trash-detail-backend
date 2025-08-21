@@ -77,3 +77,19 @@ export const changePassword = catchAsync(async (req, res, next) => {
     message: 'Password changed successfully',
   });
 });
+
+
+
+// @desc    Get all users
+// @route   GET /api/users
+// @access  Admin/Superadmin
+export const getUsers = catchAsync(async (req, res, next) => {
+  const { role } = req.query; // e.g., ?role=customer or ?role=employee
+  let users;
+  if (role) {
+    users = await userService.getUsersByRole(role);
+  } else {
+    users = await userService.getAllUsers();
+  }
+  res.status(200).json({ success: true, data: users });
+});

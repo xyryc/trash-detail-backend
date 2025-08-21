@@ -70,6 +70,30 @@ export const getProblemById = catchAsync(async (req, res, next) => {
   });
 });
 
+export const updateProblem = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { title, additionalNotes, locationName: manualLocationName, imageUrl } = req.body;
+  if (!title ||  !manualLocationName || !imageUrl) {
+    return next(new ApiError(400, 'Please provide title, image and either location coordinates or a location name'));
+  }
+
+ const updateProblem = await problemService.updateProblemById(id, {
+    title,
+    additionalNotes,
+    locationName: manualLocationName,
+    imageUrl
+  }); 
+  if (!updateProblem) {
+    return next(new ApiError(404, 'Problem not found'));
+  }     
+  res.status(200).json({
+    success: true,
+    message: 'Problem updated successfully',
+    data: updateProblem,
+  });
+
+});
+
 export const updateProblemStatus = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.body;

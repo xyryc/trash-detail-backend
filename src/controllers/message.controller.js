@@ -37,7 +37,7 @@ export const getMessages = catchAsync(async (req, res, next) => {
   const { id } = req.params; // This 'id' can be problemId or conversationId
 
   if (!chatType) {
-    return next(new ApiError(400, 'Please provide chatType query parameter'));
+    return next(new ApiError(400, 'Please provide chatType query'));
   }
 
   let messages;
@@ -65,5 +65,17 @@ export const markMessageAsRead = catchAsync(async (req, res, next) => {
     success: true,
     message: `Message marked as read`,
     data: result,
+  });
+});
+
+export const getChatList = catchAsync(async (req, res, next) => {
+  const { type } = req.query; // type can be 'problem', 'support', or undefined
+  if (!type || (type !== 'problem' && type !== 'support')) {
+    return next(new ApiError(400, 'Please provide a valid chat type: problem or support'));
+  }
+  const chatList = await messageService.getChatList({ type });
+  res.status(200).json({
+    success: true,
+    data: chatList,
   });
 });

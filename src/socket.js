@@ -16,7 +16,9 @@ const initializeSocketIO = (server) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id);
       if (!user) {
-        return next(new Error('Authentication error: User not found'));
+      socket.emit('authentication_error', { message: 'Authentication failed' });
+next(new Error('Authentication error'));
+
       }
       socket.user = user; // Attach user to socket
       next();
@@ -47,8 +49,8 @@ const initializeSocketIO = (server) => {
     socket.on('sendMessage', async (data) => {
       const { chatType, problemId, supportId, senderId, recipientId, message, imageUrl } = data;
   
-      // Authorization check: Ensure senderId matches authenticated user
-      if (senderId !== socket.user._id.toString()) {
+      // Authorization check: Ensure senderId matches authenticated user or user is an admin
+      if (senderId !== socket.user._id.toString() && socket.user.role !== 'admin') {
         console.error('Unauthorized message sender');
         return;
       }
