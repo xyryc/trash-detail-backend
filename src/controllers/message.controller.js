@@ -1,6 +1,7 @@
 import * as messageService from '../services/message.service.js';
 import catchAsync from '../utils/catchAsync.js';
 import ApiError from '../utils/ApiError.js';
+import User from '../models/user.model.js';
 
 export const createMessage = catchAsync(async (req, res, next) => {
   const { chatType, problemId, supportId, message } = req.body;
@@ -70,10 +71,12 @@ export const markMessageAsRead = catchAsync(async (req, res, next) => {
 
 export const getChatList = catchAsync(async (req, res, next) => {
   const { type } = req.query; // type can be 'problem', 'support', or undefined
+  const  userId  = req.user._id; // Assuming userId is available in req.user
+  const user = await User.findById(userId);
   if (!type || (type !== 'problem' && type !== 'support')) {
     return next(new ApiError(400, 'Please provide a valid chat type: problem or support'));
   }
-  const chatList = await messageService.getChatList({ type });
+  const chatList = await messageService.getChatList({ type, user});
   res.status(200).json({
     success: true,
     data: chatList,

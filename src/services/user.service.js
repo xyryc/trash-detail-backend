@@ -190,3 +190,11 @@ export const updateUserById = async (id, updateData) => {
 export const getUsersByRole = async (role) => {
   return User.find({ role }).select('-password -refreshToken');
 };
+
+export const removeUserById = async (id) => {
+  const user = await User.findByIdAndDelete(id);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+  return user;
+}

@@ -85,11 +85,46 @@ export const changePassword = catchAsync(async (req, res, next) => {
 // @access  Admin/Superadmin
 export const getUsers = catchAsync(async (req, res, next) => {
   const { role } = req.query; // e.g., ?role=customer or ?role=employee
+  const requestingUserRole = req.user.role; // Get the role of the user making the request
   let users;
+  
+  // Only superadmin can get admin details
+  if (role === 'admin' && requestingUserRole !== 'superadmin') {
+    return next(new ApiError(403, 'Only superadmin can access admin details.'));
+  }
+  
   if (role) {
     users = await userService.getUsersByRole(role);
   } else {
-    users = await userService.getAllUsers();
+    // For general listing, exclude admins unless requesting user is superadmin
+    if (requestingUserRole !== 'superadmin') {
+      const query = { role: { $nin: ['admin', 'superadmin'] } };
+      users = await userService.getAllUsers(query);
+    } else {
+      users = await userService.getAllUsers();
+    }
   }
+  
   res.status(200).json({ success: true, data: users });
+});
+
+export const adminRemove= catchAsync(async (req, res, next) => {
+  const userId = req.params.id;
+ console.log("Delte:", userId)
+  // Only superadmin can remove users
+  if (req.user.role !== 'superadmin') {
+    return next(new ApiError(403, 'Only superadmin can remove users.'));
+  }
+
+  const removedUser = await userService.removeUserById(userId);
+
+  if (!removedUser) {
+    return next(new ApiError(404, 'User not found.'));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'User removed successfully',
+    data: removedUser,
+  });
 });

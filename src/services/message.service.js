@@ -106,34 +106,105 @@ export const markMessageAsRead = async (messageId, userId) => {
  * @param {String} [filters.problemId] - Filter by a specific problem ID (MongoDB ObjectId)
  * @returns {Promise<Array>}
  */
-export const getChatList = async ({ type } = {}) => {
+// export const getChatList = async ({ type } = {}) => {
+//   const chatList = [];
+
+//   // If type is 'problem' or not specified, fetch problems
+//   if (!type || type === 'problem') {
+//     const problems = await Problem.find({});
+//     for (const problem of problems) {
+//       const customer = await User.findOne({ userId: problem.customerId });
+//       if (customer) {
+//         const incomingMessagesCount = await Message.countDocuments({
+//           problemId: problem._id,
+//           senderId: customer._id,
+//         });
+
+//         chatList.push({
+//           id: problem._id,
+//           problemId: problem.problemId,
+//           type: 'problem',
+//           customer: {
+//             id: customer._id,
+//             name: customer.name,
+//             role: customer.role,
+//           },
+//           incomingMessages: incomingMessagesCount,
+//           title: problem.title,
+//           status: problem.status,
+//           createdAt: problem.createdAt,
+//         });
+//       }
+//     }
+//   }
+
+//   // If type is 'support' or not specified, fetch supports
+//   if (!type || type === 'support') {
+//     const supports = await Support.find({});
+//     for (const support of supports) {
+//       const createdBy = await User.findOne({ _id: support.createdBy });
+//       if (createdBy) {
+//         const incomingMessagesCount = await Message.countDocuments({
+//           supportId: support._id,
+//           senderId: createdBy._id,
+//         });
+
+//         chatList.push({
+//           id: support._id,
+//           supportId: support.supportId,
+//           type: 'support',
+//           customer: {
+//             id: createdBy._id,
+//             name: createdBy.name,
+//             role: createdBy.role,
+//           },
+//           incomingMessages: incomingMessagesCount,
+//           title: support.title,
+//           createdAt: support.createdAt,
+//         });
+//       }
+//     }
+//   }
+
+//   chatList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+//   return chatList;
+// };
+
+
+export const getChatList = async ({ type, user } = {}) => {
   const chatList = [];
 
   // If type is 'problem' or not specified, fetch problems
   if (!type || type === 'problem') {
     const problems = await Problem.find({});
+
     for (const problem of problems) {
       const customer = await User.findOne({ userId: problem.customerId });
-      if (customer) {
-        const incomingMessagesCount = await Message.countDocuments({
-          problemId: problem._id,
-          senderId: customer._id,
-        });
 
-        chatList.push({
-          id: problem._id,
-          problemId: problem.problemId,
-          type: 'problem',
-          customer: {
-            id: customer._id,
-            name: customer.name,
-            role: customer.role,
-          },
-          incomingMessages: incomingMessagesCount,
-          title: problem.title,
-          status: problem.status,
-          createdAt: problem.createdAt,
-        });
+      if (customer) {
+        // If user is an admin, or the problem belongs to the logged-in customer
+        if (user.role === 'admin' || customer._id.toString() === user._id.toString()) {
+          const incomingMessagesCount = await Message.countDocuments({
+            problemId: problem._id,
+            senderId: customer._id,
+          });
+
+          chatList.push({
+            id: problem._id,
+            problemId: problem.problemId,
+            type: 'problem',
+            customer: {
+              id: customer._id,
+              name: customer.name,
+              role: customer.role,
+            },
+            incomingMessages: incomingMessagesCount,
+            title: problem.title,
+            status: problem.status,
+            createdAt: problem.createdAt,
+          });
+        }
       }
     }
   }
@@ -141,31 +212,37 @@ export const getChatList = async ({ type } = {}) => {
   // If type is 'support' or not specified, fetch supports
   if (!type || type === 'support') {
     const supports = await Support.find({});
+
     for (const support of supports) {
       const createdBy = await User.findOne({ _id: support.createdBy });
-      if (createdBy) {
-        const incomingMessagesCount = await Message.countDocuments({
-          supportId: support._id,
-          senderId: createdBy._id,
-        });
 
-        chatList.push({
-          id: support._id,
-          supportId: support.supportId,
-          type: 'support',
-          customer: {
-            id: createdBy._id,
-            name: createdBy.name,
-            role: createdBy.role,
-          },
-          incomingMessages: incomingMessagesCount,
-          title: support.title,
-          createdAt: support.createdAt,
-        });
+      if (createdBy) {
+        // If user is an admin, or the support belongs to the logged-in employee
+        if (user.role === 'admin' || createdBy._id.toString() === user._id.toString()) {
+          const incomingMessagesCount = await Message.countDocuments({
+            supportId: support._id,
+            senderId: createdBy._id,
+          });
+
+          chatList.push({
+            id: support._id,
+            supportId: support.supportId,
+            type: 'support',
+            customer: {
+              id: createdBy._id,
+              name: createdBy.name,
+              role: createdBy.role,
+            },
+            incomingMessages: incomingMessagesCount,
+            title: support.title,
+            createdAt: support.createdAt,
+          });
+        }
       }
     }
   }
 
+  // Sort the chat list by creation date (newest first)
   chatList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   return chatList;

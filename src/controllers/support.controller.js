@@ -21,7 +21,7 @@ export const createSupport = catchAsync(async (req, res, next) => {
       await notificationService.createNotification({
         recipientId: admin._id,
         senderId: createdBy,
-        type: 'new_support_ticket',
+        type: 'new_support',
         supportId: newSupport._id,
         message: `New support ticket #${newSupport._id} has been created by ${req.user.name || req.user.email}.`
       });
@@ -51,5 +51,28 @@ export const getSupportById = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: support,
+  });
+});
+
+export const closeSupport = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const updatedSupport = await supportService.updateSupportStatusById(id, 'closed');
+
+  // Optionally, notify the user who created the support ticket
+  const createdBy = await User.findOne({ _id: updatedSupport.createdBy });
+  if (createdBy) {
+    await notificationService.createNotification({
+      recipientId: createdBy._id,
+      senderId: req.user._id, // Assuming the user closing the ticket is an admin
+      type: 'status_update',
+      supportId: updatedSupport._id,
+      message: `Your support ticket #${updatedSupport.supportId} has been closed.`
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Support ticket closed successfully',
+    data: updatedSupport,
   });
 });

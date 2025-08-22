@@ -20,7 +20,7 @@ import cors from 'cors';
 const app = express();
 const server = http.createServer(app);
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://127.0.0.1:8080', // or an array of allowed origins
+  origin:'*', // process.env.FRONTEND_URL || 'http://127.0.0.1:8080', // or an array of allowed origins
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true // if you need to send cookies

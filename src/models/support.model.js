@@ -20,7 +20,16 @@ const supportSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  status: {
+    type: String,
+    enum: ['open', 'in_progress', 'closed', 'reopened'],
+    default: 'open'
+  },
   createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  statusUpdateDate: {
     type: Date,
     default: Date.now
   }
@@ -32,7 +41,7 @@ supportSchema.pre('save', async function(next) {
     
     // Get all existing problem IDs and extract numbers
     const existingSupports = await this.constructor.find(
-      { supportId: { $regex: `^${prefix}\\d+$` } },
+        { supportId: { $regex: `^${prefix}\\d+$` } }, 
       { supportId: 1 }
     );
 
@@ -45,6 +54,10 @@ supportSchema.pre('save', async function(next) {
     });
 
     this.supportId = `${prefix}${maxNumber + 1}`;
+  }
+
+  if (this.isModified('status')) {
+    this.statusUpdateDate = new Date();
   }
   next();
 });
