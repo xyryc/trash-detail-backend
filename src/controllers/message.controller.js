@@ -4,11 +4,11 @@ import ApiError from '../utils/ApiError.js';
 import User from '../models/user.model.js';
 
 export const createMessage = catchAsync(async (req, res, next) => {
-  const { chatType, problemId, supportId, message } = req.body;
+  const { chatType, problemId, supportId, message, imageUrl } = req.body;
   const senderId = req.user._id;
 
-  if (!chatType || !message) {
-    return next(new ApiError(400, 'Please provide chatType and message'));
+  if (!chatType || (!message && !imageUrl)) {
+    return next(new ApiError(400, 'Please provide chatType and either a message or an imageUrl'));
   }
 
   if (chatType === 'problem' && !problemId) {
@@ -19,12 +19,13 @@ export const createMessage = catchAsync(async (req, res, next) => {
     return next(new ApiError(400, 'supportId is required for support chatType'));
   }
 
-  const newMessage = await messageService.createMessage({ 
-    chatType, 
-    problemId, 
-    supportId, 
-    senderId, 
-    message 
+  const newMessage = await messageService.createMessage({
+    chatType,
+    problemId,
+    supportId,
+    senderId,
+    message,
+    imageUrl,
   });
 
   res.status(201).json({

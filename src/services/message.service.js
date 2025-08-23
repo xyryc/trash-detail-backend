@@ -235,6 +235,7 @@ export const getChatList = async ({ type, user } = {}) => {
             },
             incomingMessages: incomingMessagesCount,
             title: support.title,
+            status: support?.status,
             createdAt: support.createdAt,
           });
         }

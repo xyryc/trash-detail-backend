@@ -10,6 +10,7 @@ export const uploadFile = catchAsync(async (req, res, next) => {
   // Assuming your server is accessible at http://localhost:3000
   const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
 
+
   res.status(200).json({
     success: true,
     message: 'File uploaded successfully',

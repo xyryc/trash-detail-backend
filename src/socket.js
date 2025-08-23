@@ -46,6 +46,33 @@ next(new Error('Authentication error'));
       console.log(`User ${socket.user.email} joined room: ${roomName}`);
     });
 
+socket.on('typing', (data) => {
+  const { chatType, problemId, supportId, userId } = data;
+  let roomName;
+  if (chatType === 'problem' && problemId) {
+    roomName = `problem_${problemId}`;
+  } else if (chatType === 'support' && supportId) {
+    roomName = `support_${supportId}`;
+  } else {
+    return;
+  }
+  // Broadcast to everyone else in the room except sender
+  socket.to(roomName).emit('typing', { userId });
+});
+
+socket.on('stop_typing', (data) => {
+  const { chatType, problemId, supportId, userId } = data;
+  let roomName;
+  if (chatType === 'problem' && problemId) {
+    roomName = `problem_${problemId}`;
+  } else if (chatType === 'support' && supportId) {
+    roomName = `support_${supportId}`;
+  } else {
+    return;
+  }
+  socket.to(roomName).emit('stop_typing', { userId });
+});
+
     socket.on('sendMessage', async (data) => {
       const { chatType, problemId, supportId, senderId, recipientId, message, imageUrl } = data;
   
@@ -72,6 +99,7 @@ next(new Error('Authentication error'));
       }
 
       const newMessage = await Message.create({ chatType, problemId, supportId, senderId, recipientId, message, imageUrl });
+      console.log(newMessage);
       io.to(roomName).emit('newMessage', newMessage);
     });
 
