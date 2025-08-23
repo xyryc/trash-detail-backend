@@ -167,6 +167,16 @@ export const getMyForwardedProblems = catchAsync(async (req, res, next) => {
   });
 });
 
+export const getMyCreatedProblems = catchAsync(async (req, res, next) => {
+  const employeeId = req.user._id; // Get the logged-in employee's ID
+  const problems = await problemService.getProblemsByEmployeeId(employeeId);
+  res.status(200).json({
+    success: true,
+    data: problems,
+  });
+});
+
+
 export const closeProblem = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const updatedProblem = await problemService.updateProblemStatusById(id, 'closed');

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProblem, getMyForwardedProblems, getProblemById, getProblems, updateProblemStatus, closeProblem, updateProblem } from '../controllers/problem.controller.js';
+import { createProblem, getMyCreatedProblems, getMyForwardedProblems, getProblemById, getProblems, updateProblemStatus, closeProblem, updateProblem } from '../controllers/problem.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
 import { restrictTo } from '../middlewares/rbac.middleware.js';
 
@@ -12,6 +12,8 @@ router.get('/my-problems', restrictTo('customer'), getMyForwardedProblems);
 
 // Employee routes
 router.post('/', restrictTo('employee'), createProblem);
+router.get('/my-created-problems', restrictTo('employee'), getMyCreatedProblems);
+router.get('/my-created-problems', restrictTo('employee'), getMyCreatedProblems);
 
 // Admin routes
 router.get('/', restrictTo('admin', 'superadmin'), getProblems);

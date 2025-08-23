@@ -58,3 +58,13 @@ export const updateProblemStatusById = async (problemId, status) => {
   await problem.save();
   return problem;
 };
+
+/**
+ * Get problems by employee id
+ * @param {String} employeeId
+ * @returns {Promise<Problem[]>}
+ */
+export const getProblemsByEmployeeId = async (employeeId) => {
+  return Problem.find({ employeeId }).populate('customerId', 'name email');
+};
+
