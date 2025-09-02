@@ -4,10 +4,14 @@ import catchAsync from '../utils/catchAsync.js';
 
 export const loginUser = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
-  const { accessToken, refreshToken } = await authService.login(email, password);
+  const { user, accessToken, refreshToken } = await authService.login(
+    email,
+    password
+  );
 
   res.status(200).json({
     success: true,
+    user,
     accessToken,
     refreshToken,
   });

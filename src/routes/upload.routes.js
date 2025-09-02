@@ -1,18 +1,24 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from 'cloudinary';
 import { uploadFile } from '../controllers/upload.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-// Set up multer for file storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'src/uploads/'); // Files will be stored in the 'uploads' directory
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary.v2,
+  params: {
+    folder: 'trashdetail',
+    format: async (req, file) => 'png', // or other formats
+    public_id: (req, file) => `${file.fieldname}-${Date.now()}`,
   },
 });
 

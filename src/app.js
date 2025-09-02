@@ -1,6 +1,7 @@
 import express from 'express';
 import morgan from 'morgan';
 import http from 'http';
+import 'dotenv/config.js';
 import userRoutes from './routes/user.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import problemRoutes from './routes/problem.routes.js';
@@ -33,9 +34,6 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json());
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files from the 'uploads' directory
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 app.get('/', (req, res) => {
   res.send('Trash Detail Backend API Running');

@@ -1,7 +1,10 @@
 import * as messageService from '../services/message.service.js';
+import * as notificationService from '../services/notification.service.js';
 import catchAsync from '../utils/catchAsync.js';
 import ApiError from '../utils/ApiError.js';
 import User from '../models/user.model.js';
+import Problem from '../models/problem.model.js';
+import Support from '../models/support.model.js';
 
 export const createMessage = catchAsync(async (req, res, next) => {
   const { chatType, problemId, supportId, message, imageUrl } = req.body;
@@ -27,6 +30,62 @@ export const createMessage = catchAsync(async (req, res, next) => {
     message,
     imageUrl,
   });
+
+  // --- Notification Logic ---
+  let recipientId;
+  let notificationMessage;
+
+  if (chatType === 'problem') {
+    const problem = await Problem.findById(problemId).populate('customerId');
+    if (problem) {
+      if (req.user.role === 'admin') {
+        recipientId = problem.customerId;
+      } else {
+        // Notify all admins
+        const admins = await User.find({ role: 'admin' });
+        for (const admin of admins) {
+          await notificationService.createNotification({
+            recipientId: admin._id,
+            senderId,
+            type: 'new_message',
+            problemId,
+            message: `New message in problem #${problem.problemId}`,
+          });
+        }
+      }
+    }
+  } else if (chatType === 'support') {
+    const support = await Support.findById(supportId).populate('createdBy');
+    if (support) {
+      if (req.user.role === 'admin') {
+        recipientId = support.createdBy;
+      } else {
+        // Notify all admins
+        const admins = await User.find({ role: 'admin' });
+        for (const admin of admins) {
+          await notificationService.createNotification({
+            recipientId: admin._id,
+            senderId,
+            type: 'new_message',
+            supportId,
+            message: `New message in support ticket #${support.supportId}`,
+          });
+        }
+      }
+    }
+  }
+
+  if (recipientId) {
+    await notificationService.createNotification({
+      recipientId,
+      senderId,
+      type: 'new_message',
+      problemId,
+      supportId,
+      message: `You have a new message`,
+    });
+  }
+  // --- End of Notification Logic ---
 
   res.status(201).json({
     success: true,

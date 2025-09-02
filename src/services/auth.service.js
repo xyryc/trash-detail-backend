@@ -33,8 +33,9 @@ export const login = async (email, password) => {
   if (!user || !(await user.matchPassword(password))) {
     throw new ApiError(401, 'Incorrect email or password');
   }
-
-  return generateAuthTokens(user);
+  const { accessToken, refreshToken } = await generateAuthTokens(user);
+  user.password = undefined;
+  return { user, accessToken, refreshToken };
 };
 
 export const logout = async (refreshToken) => {

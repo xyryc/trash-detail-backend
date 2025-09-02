@@ -13,7 +13,7 @@ router.get('/my-problems', restrictTo('customer'), getMyForwardedProblems);
 // Employee routes
 router.post('/', restrictTo('employee'), createProblem);
 router.get('/my-created-problems', restrictTo('employee'), getMyCreatedProblems);
-router.get('/my-created-problems', restrictTo('employee'), getMyCreatedProblems);
+//router.get('/my-created-problems', restrictTo('employee'), getMyCreatedProblems);
 
 // Admin routes
 router.get('/', restrictTo('admin', 'superadmin'), getProblems);

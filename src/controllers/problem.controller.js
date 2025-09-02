@@ -130,16 +130,39 @@ export const updateProblemStatus = catchAsync(async (req, res, next) => {
     io.to(roomName).emit('newMessage', newMessage);
   }
 
-  // Notify the customer about the status update
+  // Notify the customer and employee about the status update
   const customer = await User.findOne({userId: updatedProblem.customerId});
-  if (customer) {
-    await notificationService.createNotification({
-      recipientId: customer._id,
-      senderId: req.user._id, // Assuming the user updating the status is an admin
-      type: 'new_problem',
-      problemId: updatedProblem._id,
-      message: `Your problem #${updatedProblem.problemId} status has been updated to ${status}.`
-    });
+  const employee = await User.findById(updatedProblem.employeeId);
+  if (status === 'cancelled') {
+    if (employee) {
+      await notificationService.createNotification({
+        recipientId: employee._id,
+        senderId: req.user._id,
+        type: 'status_update',
+        problemId: updatedProblem._id,
+        message: `The status of a problem you created (#${updatedProblem.problemId}) has been updated to ${status}.`
+      });
+    }
+  }
+  else {
+    if (customer) {
+      await notificationService.createNotification({
+        recipientId: customer._id,
+        senderId: req.user._id, // Assuming the user updating the status is an admin
+        type: 'new_problem',
+        problemId: updatedProblem._id,
+        message: `Your problem #${updatedProblem.problemId} status has been updated to ${status}.`
+      });
+    }
+    if (employee) {
+      await notificationService.createNotification({
+        recipientId: employee._id,
+        senderId: req.user._id,
+        type: 'status_update',
+        problemId: updatedProblem._id,
+        message: `The status of a problem you created (#${updatedProblem.problemId}) has been updated to ${status}.`
+      });
+    }
   }
 
   res.status(200).json({
@@ -181,7 +204,7 @@ export const closeProblem = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const updatedProblem = await problemService.updateProblemStatusById(id, 'closed');
 
-  // Notify the customer about the status update
+  // Notify the customer and employee about the status update
   const customer = await User.findOne({userId: updatedProblem.customerId});
   if (customer) {
     await notificationService.createNotification({
@@ -190,6 +213,17 @@ export const closeProblem = catchAsync(async (req, res, next) => {
       type: 'problem_closed',
       problemId: updatedProblem._id,
       message: `Your problem #${updatedProblem.problemId} has been closed.`
+    });
+  }
+
+  const employee = await User.findById(updatedProblem.employeeId);
+  if (employee) {
+    await notificationService.createNotification({
+      recipientId: employee._id,
+      senderId: req.user._id,
+      type: 'problem_closed',
+      problemId: updatedProblem._id,
+      message: `The problem #${updatedProblem.problemId} you created has been closed.`
     });
   }
 
