@@ -30,26 +30,15 @@ export const createUser = catchAsync(async (req, res, next) => {
 export const updateUser = catchAsync(async (req, res, next) => {
   const userId = req.params.id;
   const updates = req.body;
-
-  // Prevent users from updating their own role or userId
-  if (updates.role && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return next(new ApiError(403, 'You are not allowed to change your role.'));
-  }
-  if (updates.userId) {
-    return next(new ApiError(400, 'User ID cannot be updated.'));
-  }
+  const updaterRole = req.user.role;
 
   // Authorization: User can only update their own profile unless they are admin/superadmin
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user._id.toString() !== userId) {
+  if (updaterRole !== 'admin' && updaterRole !== 'superadmin' && req.user._id.toString() !== userId) {
     return next(new ApiError(403, 'You do not have permission to update this user.'));
   }
 
-  // Prevent password updates through this route
-  if (updates.password) {
-    return next(new ApiError(400, 'Password cannot be updated through this route. Please use /updatePassword.'));
-  }
-
-  const updatedUser = await userService.updateUserById(userId, updates);
+  // The service layer will handle the logic for what fields can be updated by whom
+  const updatedUser = await userService.updateUserById(userId, updates, updaterRole);
 
   if (!updatedUser) {
     return next(new ApiError(404, 'User not found.'));
@@ -84,28 +73,61 @@ export const changePassword = catchAsync(async (req, res, next) => {
 // @route   GET /api/users
 // @access  Admin/Superadmin
 export const getUsers = catchAsync(async (req, res, next) => {
-  const { role } = req.query; // e.g., ?role=customer or ?role=employee
-  const requestingUserRole = req.user.role; // Get the role of the user making the request
-  let users;
-  
-  // Only superadmin can get admin details
-  if (role === 'admin' && requestingUserRole !== 'superadmin') {
-    return next(new ApiError(403, 'Only superadmin can access admin details.'));
-  }
-  
+  const { role } = req.query;
+  const { role: requesterRole, _id: requesterId } = req.user;
+  let query = {};
+
   if (role) {
-    users = await userService.getUsersByRole(role);
-  } else {
-    // For general listing, exclude admins unless requesting user is superadmin
-    if (requestingUserRole !== 'superadmin') {
-      const query = { role: { $nin: ['admin', 'superadmin'] } };
-      users = await userService.getAllUsers(query);
-    } else {
-      users = await userService.getAllUsers();
+    // Handle requests for a specific role
+    switch (role) {
+      case 'superadmin':
+        if (requesterRole !== 'superadmin') {
+          return next(new ApiError(403, 'You do not have permission to view superadmin users.'));
+        }
+        // A superadmin asking for 'superadmin' gets both admins and superadmins
+        query = { role: { $in: ['admin', 'superadmin'] } };
+        break;
+      case 'admin':
+        if (requesterRole !== 'superadmin' && requesterRole !== 'admin') {
+          return next(new ApiError(403, 'You do not have permission to view admin users.'));
+        }
+        query = { role: 'admin' };
+        break;
+      default:
+        // For any other role, just set the query
+        query = { role: role };
     }
+  } else {
+    // Handle requests for a general list of users
+    if (requesterRole === 'admin') {
+      query = { role: { $ne: 'superadmin' } };
+    } else if (requesterRole !== 'superadmin') {
+      query = { role: { $nin: ['admin', 'superadmin'] } };
+    }
+     // If requester is a superadmin and no role is specified, the empty query {} gets all users
   }
-  
-  res.status(200).json({ success: true, data: users });
+
+  const users = await userService.getAllUsers(query);
+  res.status(200).json({ success: true, data: users || [] });
+});
+
+// @desc    Get user by ID
+// @route   GET /api/users/:id
+// @access  Admin/Superadmin
+export const getUserById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const requesterRole = req.user.role;
+
+  // If the requester is a superadmin, show the password hash
+  const showPassword = requesterRole === 'superadmin';
+
+  const user = await userService.getUserById(id, showPassword);
+
+  if (!user) {
+    return next(new ApiError(404, 'User not found'));
+  }
+
+  res.status(200).json({ success: true, data: user });
 });
 
 export const adminRemove= catchAsync(async (req, res, next) => {
@@ -126,5 +148,14 @@ export const adminRemove= catchAsync(async (req, res, next) => {
     success: true,
     message: 'User removed successfully',
     data: removedUser,
+  });
+});
+
+export const getMe = catchAsync(async (req, res, next) => {
+  // The user object is attached to the request by the auth middleware
+  const user = req.user;
+  res.status(200).json({
+    success: true,
+    data: user,
   });
 });

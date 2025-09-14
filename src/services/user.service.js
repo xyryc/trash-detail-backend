@@ -170,25 +170,37 @@ export const createUser = async (userData) => {
   return newUser;
 };
 
-export const updateUserById = async (id, updateData) => {
-  // Prevent direct updates to sensitive fields
-  const disallowedFields = ['password', 'refreshToken', 'role', 'userId'];
-  disallowedFields.forEach(field => {
-    if (updateData[field] !== undefined) {
-      throw new ApiError(400, `Updating ${field} directly is not allowed.`);
-    }
-  });
+export const updateUserById = async (id, updateData, updaterRole) => {
+  // Only superadmin can update password and role via this function
+  if (updateData.password && updaterRole !== 'superadmin') {
+    throw new ApiError(403, 'You do not have permission to change the password for another user.');
+  }
+  if (updateData.role && updaterRole !== 'superadmin') {
+    throw new ApiError(403, 'You do not have permission to change user roles.');
+  }
 
-  const user = await User.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true,
-  });
+  // Fetch the user, including the password field if it needs to be updated
+  const user = await User.findById(id).select(updateData.password ? '+password' : '');
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
 
-  return user;
+  // Update the fields from the request body
+  Object.assign(user, updateData);
+
+  // The .save() method will trigger the pre-save hook to hash the password if it was changed
+  await user.save();
+
+  // Exclude password from the returned object
+  const userObject = user.toObject();
+  delete userObject.password;
+
+  return userObject;
 };
 
 export const getUsersByRole = async (role) => {
-  return User.find({ role }).select('-password -refreshToken');
+  const query = Array.isArray(role) ? { role: { $in: role } } : { role };
+  return User.find(query).select('-password -refreshToken');
 };
 
 export const removeUserById = async (id) => {
@@ -197,4 +209,16 @@ export const removeUserById = async (id) => {
     throw new ApiError(404, 'User not found');
   }
   return user;
-}
+};
+
+export const getAllUsers = async (query = {}) => {
+  return User.find(query).select('-password -refreshToken');
+};
+
+export const getUserById = async (id, showPassword = false) => {
+  let query = User.findById(id);
+  if (showPassword) {
+    query = query.select('+password');
+  }
+  return query.select('-refreshToken');
+};

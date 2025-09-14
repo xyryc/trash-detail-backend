@@ -10,6 +10,6 @@ router.use(protect);
 router.post('/', createSupport);
 router.get('/', restrictTo('admin', 'superadmin'), getAllSupports);
 router.get('/:id', restrictTo('admin', 'superadmin'), getSupportById);
-router.patch('/:id/close', restrictTo('admin', 'superadmin'), closeSupport);
+router.patch('/close/:id', restrictTo('admin', 'superadmin'), closeSupport);
 
 export default router;

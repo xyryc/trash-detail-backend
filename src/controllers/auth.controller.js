@@ -57,3 +57,9 @@ export const verifyResetCode = catchAsync(async (req, res, next) => {
   await authService.verifyResetCode(code);
   res.status(200).json({ success: true, message: 'Code verified successfully' });
 });
+
+export const resendOtp = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+  await authService.resendOtp(email);
+  res.status(200).json({ success: true, message: 'New OTP sent to your email' });
+});

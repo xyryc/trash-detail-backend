@@ -10,8 +10,8 @@ export const createProblem = catchAsync(async (req, res, next) => {
   const { title, additionalNotes, location, locationName: manualLocationName, imageUrl, customerId } = req.body;
   const employeeId = req.user._id; // Assuming employee is logged in and user object is available in req
 
-  if (!title || (!location && !manualLocationName) || !imageUrl || !customerId) {
-    return next(new ApiError(400, 'Please provide title, image, customerId and either location coordinates or a location name'));
+  if (!title || !imageUrl || !customerId) {
+    return next(new ApiError(400, 'Please provide title, image, and customerId'));
   }
 
   let locationName = manualLocationName;
@@ -73,8 +73,8 @@ export const getProblemById = catchAsync(async (req, res, next) => {
 export const updateProblem = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { title, additionalNotes, locationName: manualLocationName, imageUrl } = req.body;
-  if (!title ||  !manualLocationName || !imageUrl) {
-    return next(new ApiError(400, 'Please provide title, image and either location coordinates or a location name'));
+  if (!title ||  !manualLocationName || !additionalNotes) {
+    return next(new ApiError(400, 'Please provide title, additional notes or a location name'));
   }
 
  const updateProblem = await problemService.updateProblemById(id, {

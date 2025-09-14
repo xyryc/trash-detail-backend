@@ -16,10 +16,10 @@ router.get('/my-created-problems', restrictTo('employee'), getMyCreatedProblems)
 //router.get('/my-created-problems', restrictTo('employee'), getMyCreatedProblems);
 
 // Admin routes
-router.get('/', restrictTo('admin', 'superadmin'), getProblems);
+router.get('/admin', restrictTo('admin', 'superadmin'), getProblems);
 router.get('/:id', getProblemById);
-router.put('/:id/update',restrictTo('admin','superadmin' ,'employee'),updateProblem);
-router.patch('/:id/status', restrictTo('admin', 'superadmin'), updateProblemStatus);
-router.patch('/:id/close', restrictTo('admin', 'superadmin'), closeProblem);
+router.put('/update/:id',restrictTo('admin','superadmin' ,'employee'),updateProblem);
+router.patch('/status/:id', restrictTo('admin', 'superadmin'), updateProblemStatus);
+router.patch('/close/:id', restrictTo('admin', 'superadmin'), closeProblem);
 
 export default router;

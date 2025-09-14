@@ -128,4 +128,37 @@ export const verifyResetCode = async (code) => {
 
   return { success: true, message: 'Code verified successfully' };
 };
+
+export const resendOtp = async (email) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Generate 4 digit code
+  const resetCode = Math.floor(1000 + Math.random() * 9000).toString();
+  user.passwordResetCode = resetCode;
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  user.passwordResetVerified = false; // Reset verification status
+
+  await user.save({ validateBeforeSave: false });
+
+  // Send email
+  const message = `Your new password reset code is: ${resetCode}`;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'New Password Reset Code',
+      html: message,
+    });
+  } catch (err) {
+    console.log(err);
+    user.passwordResetCode = undefined;
+    user.passwordResetExpires = undefined;
+    user.passwordResetVerified = undefined;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(500, 'Email could not be sent');
+  }
+};
 ""
