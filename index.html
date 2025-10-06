@@ -1,196 +1,465 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Client</title>
-    <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 80%; max-width: 800px; margin-top: 20px; }
-        .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
-        input, select, textarea, button { padding: 8px; margin: 5px 0; border-radius: 3px; border: 1px solid #ddd; }
-        button { cursor: pointer; background-color: #007bff; color: white; border: none; }
-        #chat-history { height: 300px; overflow-y: scroll; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; }
-        .message { background-color: #f1f1f1; padding: 10px; border-radius: 5px; margin-bottom: 5px; }
-        .error { color: red; }
-        .status { color: green; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrashDetail - Chat Client</title>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; }
+    .container { display: flex; height: 100vh; }
+    .sidebar { width: 350px; border-right: 1px solid #ddd; display: flex; flex-direction: column; background-color: #fff; }
+    .main-content { flex-grow: 1; display: flex; flex-direction: column; }
+    .auth-section { padding: 15px; border-bottom: 1px solid #ddd; }
+    .auth-section input { width: calc(100% - 85px); padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .auth-section button { padding: 8px 12px; border: none; background-color: #007bff; color: white; border-radius: 4px; cursor: pointer; float: right; }
+    #connection-status { margin-top: 10px; font-size: 0.9em; }
+    .status-connected { color: #28a745; }
+    .status-disconnected { color: #dc3545; }
+    .chat-list-area { overflow-y: auto; flex-grow: 1; }
+    .chat-list-header { padding: 15px; font-size: 1.2em; font-weight: bold; border-bottom: 1px solid #ddd; background-color: #f9f9f9; }
+    .chat-list ul { list-style: none; padding: 0; margin: 0; }
+    .chat-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .chat-item:hover { background-color: #f5f5f5; }
+    .chat-item.active { background-color: #e9f5ff; }
+    .chat-info h3 { margin: 0 0 5px; font-size: 1em; }
+    .chat-info p { margin: 0; font-size: 0.9em; color: #666; }
+    .unread-count { background: #007bff; color: white; font-size: 0.8em; font-weight: bold; padding: 3px 8px; border-radius: 10px; }
+    .chat-window { display: flex; flex-direction: column; height: 100%; }
+    .chat-header { padding: 15px; border-bottom: 1px solid #ddd; font-weight: bold; background: #f9f9f9; }
+    .chat-history { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+    .message { padding: 8px 12px; border-radius: 18px; margin-bottom: 10px; max-width: 70%; word-wrap: break-word; }
+    .message.sent { background-color: #007bff; color: white; align-self: flex-end; margin-left: auto; }
+    .message.received { background-color: #e9e9eb; color: #000; align-self: flex-start; margin-right: auto; }
+    .message-form { display: flex; padding: 15px; border-top: 1px solid #ddd; }
+    .message-form input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 18px; }
+    .message-form button { padding: 10px 20px; border: none; background-color: #007bff; color: white; border-radius: 18px; margin-left: 10px; cursor: pointer; }
+    .empty-state { text-align: center; padding: 20px; color: #666; }
+    .loading { text-align: center; padding: 20px; color: #666; }
+    .refresh-btn { margin: 5px; padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <!-- Authentication Section -->
-        <div class="section">
-            <h2>Authentication</h2>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="auth-section">
             <input type="text" id="jwt-token" placeholder="Enter JWT Token">
-            <input type="text" id="sender-id" placeholder="Enter Your Sender ID">
             <button id="connect-btn">Connect</button>
-            <div id="connection-status">Status: Not Connected</div>
+            <div id="connection-status" class="status-disconnected">Not Connected</div>
         </div>
-
-        <!-- Join Room Section -->
-        <div class="section">
-            <h2>Join Chat Room</h2>
-            <select id="chat-type">
-                <option value="problem">Problem</option>
-                <option value="support">Support</option>
-            </select>
-            <input type="text" id="room-id" placeholder="Problem ID or Support ID">
-            <button id="join-room-btn">Join Room</button>
-            <div id="joined-room"></div>
+        <div class="chat-list-area">
+            <div class="chat-list-header">
+                Problems
+                <button id="refresh-all-btn" class="refresh-btn">Refresh All</button>
+            </div>
+            <ul id="problem-chat-list"></ul>
+            <div class="chat-list-header">Support</div>
+            <ul id="support-chat-list"></ul>
         </div>
-
-        <!-- Send Message Section -->
-        <div class="section">
-            <h2>Send Message</h2>
-            <textarea id="message-input" placeholder="Type your message..."></textarea>
-            <button id="send-message-btn">Send</button>
+    </aside>
+    <main class="main-content">
+        <div class="chat-window">
+            <div id="chat-header" class="chat-header">Select a chat to start</div>
+            <div id="chat-history" class="chat-history"></div>
+            <div class="message-form">
+                <input type="text" id="message-input" placeholder="Type a message..." disabled>
+                <button id="send-message-btn" disabled>Send</button>
+            </div>
         </div>
+    </main>
+</div>
 
-        <!-- Chat History Section -->
-        <div class="section">
-            <h2>Chat History</h2>
-            <div id="chat-history"></div>
-        </div>
+<script>
+const API_BASE_URL = 'http://localhost:3001/api/v1';
 
-        <!-- Error Display -->
-        <div id="error-message" class="error"></div>
-    </div>
+// DOM elements
+const connectBtn = document.getElementById('connect-btn');
+const jwtTokenInput = document.getElementById('jwt-token');
+const connectionStatusDiv = document.getElementById('connection-status');
+const problemChatListUl = document.getElementById('problem-chat-list');
+const supportChatListUl = document.getElementById('support-chat-list');
+const chatHeaderDiv = document.getElementById('chat-header');
+const chatHistoryDiv = document.getElementById('chat-history');
+const messageInput = document.getElementById('message-input');
+const sendMessageBtn = document.getElementById('send-message-btn');
+const refreshAllBtn = document.getElementById('refresh-all-btn');
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        const connectBtn = document.getElementById('connect-btn');
-        const connectionStatus = document.getElementById('connection-status');
-        const joinRoomBtn = document.getElementById('join-room-btn');
-        const joinedRoom = document.getElementById('joined-room');
-        const sendMessageBtn = document.getElementById('send-message-btn');
-        const chatHistory = document.getElementById('chat-history');
-        const errorMessage = document.getElementById('error-message');
+// State
+let socket = null;
+let state = { 
+    token: '', 
+    chats: { problem: [], support: [] }, 
+    activeChat: null,
+    currentUserId: null,
+    messages: [] // Store messages separately for better management
+};
 
-        let socket;
-
-        connectBtn.addEventListener('click', () => {
-            const token = document.getElementById('jwt-token').value;
-            if (!token) {
-                errorMessage.textContent = 'Please enter a JWT token.';
-                return;
-            }
-
-            socket = io('http://localhost:3001', {
-                auth: {
-                    token: token
-                },
-                transports: ['websocket']
-            });
-
-            socket.on('connect', () => {
-                connectionStatus.textContent = 'Status: Connected';
-                connectionStatus.className = 'status';
-                errorMessage.textContent = '';
-            });
-
-            socket.on('connect_error', (err) => {
-                errorMessage.textContent = `Connection failed: ${err.message}`;
-                connectionStatus.textContent = 'Status: Not Connected';
-                connectionStatus.className = 'error';
-            });
-
-            // This listener is now more robust against duplicates
-            socket.on('newMessage', (msg) => {
-                // Check if the message already exists in the chat history to prevent duplicates
-                // This assumes each message has a unique _id from the database
-                if (document.getElementById(`message-${msg._id}`)) {
-                    return; // Message already exists, do not add again
-                }
-
-                const messageElement = document.createElement('div');
-                messageElement.className = 'message';
-                messageElement.id = `message-${msg._id}`; // Assign a unique ID to the message element
-                messageElement.textContent = `From: ${msg.senderId.name || msg.senderId}, ${msg.message}`;
-                chatHistory.appendChild(messageElement);
-            });
-        });
-
-        joinRoomBtn.addEventListener('click', async () => {
-            if (!socket || !socket.connected) {
-                errorMessage.textContent = 'Please connect first.';
-                return;
-            }
-
-            const chatType = document.getElementById('chat-type').value;
-            const roomId = document.getElementById('room-id').value;
-
-            const payload = { chatType };
-            if (chatType === 'problem') {
-                payload.problemId = roomId;
-            } else {
-                payload.supportId = roomId;
-            }
-
-            socket.emit('joinRoom', payload);
-            joinedRoom.textContent = `Joined room: ${roomId}`;
-
-            // Fetch chat history
-            try {
-                const token = document.getElementById('jwt-token').value;
-                const url = `http://localhost:3001/api/v1/messages/${roomId}?chatType=${chatType}`;
-                console.log(`Fetching chat history from: ${url}`);
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const history = await response.json();
-                console.log('Received chat history:', history);
-
-                chatHistory.innerHTML = ''; // Clear previous history
-                console.log(history.data);
-               if (history && history.data && Array.isArray(history.data.messages)) {
-    history.data.messages.forEach(msg => {
-        const messageElement = document.createElement('div');
-        messageElement.className = 'message';
-        messageElement.id = `message-${msg._id}`; // Assign a unique ID to the message element
-        messageElement.textContent = `From: ${msg.senderId.name} : ${msg.message}`;
-        chatHistory.appendChild(messageElement);
-    });
-} else {
-    errorMessage.textContent = 'Chat history is not in the expected format (object with a data.messages array).';
+// Fetch helper
+async function fetchApi(endpoint, options = {}) {
+    const headers = { 
+        'Authorization': `Bearer ${state.token}`, 
+        'Content-Type': 'application/json', 
+        ...options.headers 
+    };
+    
+    try {
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+        
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        return await res.json();
+    } catch (error) {
+        console.error(`Fetch error for ${endpoint}:`, error);
+        throw error;
+    }
 }
-            } catch (error) {
-                errorMessage.textContent = `Error fetching chat history: ${error.message}`;
+
+// Extract user ID from JWT token
+function getUserIdFromToken(token) {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.id || payload.userId || payload.sub || null;
+    } catch (e) {
+        console.error('Failed to parse token:', e);
+        return null;
+    }
+}
+
+// Fetch chat lists
+async function fetchAllChatLists() {
+    try {
+        chatHistoryDiv.innerHTML = '<div class="loading">Loading chats...</div>';
+        
+        const [problemsResponse, supportsResponse] = await Promise.all([
+            fetchApi('/messages/conversations?type=problem'),
+            fetchApi('/messages/conversations?type=support')
+        ]);
+        
+        state.chats.problem = problemsResponse.results || problemsResponse.data || problemsResponse || [];
+        state.chats.support = supportsResponse.results || supportsResponse.data || supportsResponse || [];
+        
+        renderChatList('problem');
+        renderChatList('support');
+        
+        if (chatHistoryDiv.querySelector('.loading')) {
+            chatHistoryDiv.innerHTML = '<div class="empty-state">Select a chat to start messaging</div>';
+        }
+        
+    } catch (e) { 
+        console.error("Fetch failed:", e);
+        chatHistoryDiv.innerHTML = '<div class="empty-state">Failed to load chats</div>';
+    }
+}
+
+// Render chat list
+function renderChatList(type) {
+    const ul = type === 'problem' ? problemChatListUl : supportChatListUl;
+    const chats = state.chats[type];
+    
+    ul.innerHTML = '';
+    
+    if (!Array.isArray(chats) || chats.length === 0) {
+        ul.innerHTML = `<li style="padding: 15px; color: #666; text-align: center;">No ${type} chats found</li>`;
+        return;
+    }
+    
+    // Sort by last message time (most recent first)
+    const sortedChats = chats.sort((a, b) => {
+        const timeA = new Date(a.lastMessageTime || a.updatedAt || a.createdAt || 0);
+        const timeB = new Date(b.lastMessageTime || b.updatedAt || b.createdAt || 0);
+        return timeB - timeA;
+    });
+    
+    sortedChats.forEach(chat => {
+        const li = document.createElement('li');
+        li.className = 'chat-item';
+        const chatId = chat.id || chat._id;
+        li.dataset.chatId = chatId;
+        li.dataset.chatType = type;
+        
+        if (state.activeChat && state.activeChat.id === chatId && state.activeChat.type === type) {
+            li.classList.add('active');
+        }
+
+        const chatTitle = chat.customer?.name || chat.title || chat.problemTitle || chat.supportTitle || 'Unknown Chat';
+        const lastMessage = chat.lastMessage || chat.lastMessageText || 'No messages yet.';
+        const unreadCount = chat.incomingMessages || chat.unreadCount || chat.unreadMessages || 0;
+        
+        li.innerHTML = `
+            <div class="chat-info">
+                <h3>${chatTitle}</h3>
+                <p>${lastMessage}</p>
+            </div>
+            ${unreadCount > 0 ? `<div class="unread-count">${unreadCount}</div>` : ''}
+        `;
+        
+        li.addEventListener('click', () => handleChatItemClick(chat, type));
+        ul.appendChild(li);
+    });
+}
+
+// Render chat messages
+function renderChatHistory(messages) {
+    chatHistoryDiv.innerHTML = '';
+    
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        chatHistoryDiv.innerHTML = '<div class="empty-state">No messages yet. Start the conversation!</div>';
+        return;
+    }
+    
+    // Sort messages by timestamp (oldest first)
+    const sortedMessages = messages.sort((a, b) => {
+        const timeA = new Date(a.timestamp || a.createdAt || 0);
+        const timeB = new Date(b.timestamp || b.createdAt || 0);
+        return timeA - timeB;
+    });
+    
+    sortedMessages.forEach(msg => {
+        const el = document.createElement('div');
+        const messageText = msg.message || msg.text || msg.content || 'No message content';
+        const senderId = msg.senderId || msg.sender?.id || msg.userId;
+        
+        const isSentByMe = senderId === state.currentUserId;
+        el.className = isSentByMe ? 'message sent' : 'message received';
+        el.textContent = messageText;
+        chatHistoryDiv.appendChild(el);
+    });
+    
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+}
+
+// Add a single message to chat history
+function addMessageToChatHistory(messageText, senderId) {
+    // Remove empty state if present
+    if (chatHistoryDiv.querySelector('.empty-state')) {
+        chatHistoryDiv.innerHTML = '';
+    }
+    
+    const el = document.createElement('div');
+    const isSentByMe = senderId === state.currentUserId;
+    el.className = isSentByMe ? 'message sent' : 'message received';
+    el.textContent = messageText;
+    chatHistoryDiv.appendChild(el);
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+    
+    // Also add to state messages
+    state.messages.push({
+        message: messageText,
+        senderId: senderId,
+        timestamp: new Date().toISOString()
+    });
+}
+
+// Update chat list last message
+function updateChatListLastMessage(chatType, chatId, message, timestamp) {
+    const list = state.chats[chatType];
+    const chatIndex = list.findIndex(c => (c.id || c._id) === chatId);
+    
+    if (chatIndex !== -1) {
+        list[chatIndex].lastMessage = message;
+        list[chatIndex].lastMessageTime = timestamp || new Date().toISOString();
+        list[chatIndex].incomingMessages = (list[chatIndex].incomingMessages || 0) + 1;
+        renderChatList(chatType);
+    }
+}
+
+// Mark chat as read
+function markChatAsRead(chatType, chatId) {
+    if (socket && socket.connected) {
+        socket.emit('markChatAsRead', { chatType, chatId });
+        
+        // Reset unread count
+        const list = state.chats[chatType];
+        const chatIndex = list.findIndex(c => (c.id || c._id) === chatId);
+        if (chatIndex !== -1) {
+            list[chatIndex].incomingMessages = 0;
+            renderChatList(chatType);
+        }
+    }
+}
+
+// Connect socket
+connectBtn.addEventListener('click', () => {
+    const token = jwtTokenInput.value.trim();
+    if (!token) { 
+        alert('Please enter a JWT token'); 
+        return; 
+    }
+    
+    state.token = token;
+    state.currentUserId = getUserIdFromToken(token);
+    
+    if (socket) {
+        socket.disconnect();
+        socket = null;
+    }
+    
+    const serverUrl = API_BASE_URL.split('/api/v1')[0];
+    socket = io(serverUrl, { 
+        auth: { token },
+        transports: ['websocket', 'polling']
+    });
+    
+    setupSocketListeners();
+});
+
+// Refresh all chats
+refreshAllBtn.addEventListener('click', fetchAllChatLists);
+
+// Chat click handler
+async function handleChatItemClick(chat, chatType) {
+    const chatId = chat.id || chat._id;
+    
+    state.activeChat = { 
+        id: chatId, 
+        type: chatType, 
+        title: chat.customer?.name || chat.title || chat.problemTitle || chat.supportTitle || 'Unknown Chat'
+    };
+    
+    // Reset messages when switching chats
+    state.messages = [];
+    
+    chatHeaderDiv.textContent = state.activeChat.title;
+    messageInput.disabled = false;
+    sendMessageBtn.disabled = false;
+    
+    renderChatList('problem');
+    renderChatList('support');
+    
+    // Mark as read
+    if (socket && socket.connected) {
+        socket.emit('markChatAsRead', { chatType, chatId });
+    }
+    
+    // Fetch message history
+    try {
+        chatHistoryDiv.innerHTML = '<div class="loading">Loading messages...</div>';
+        const history = await fetchApi(`/messages/${chatId}?chatType=${chatType}`);
+        
+        const messages = history.data?.messages || history.messages || history.data || history || [];
+        
+        // Store messages in state
+        state.messages = messages;
+        
+        renderChatHistory(messages);
+        
+    } catch (e) { 
+        console.error('Failed to load messages:', e);
+        chatHistoryDiv.innerHTML = '<div class="empty-state">Failed to load messages</div>';
+    }
+}
+
+// Send message
+sendMessageBtn.addEventListener('click', sendMessage);
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message || !state.activeChat || !socket || !socket.connected) return;
+    
+    const payload = { 
+        chatType: state.activeChat.type, 
+        message: message 
+    };
+    
+    if (state.activeChat.type === 'problem') {
+        payload.problemId = state.activeChat.id;
+    } else {
+        payload.supportId = state.activeChat.id;
+    }
+    
+    socket.emit('sendMessage', payload);
+    
+    // Optimistic update to chat history
+    addMessageToChatHistory(message, state.currentUserId);
+    
+    // Optimistic update to chat list - update last message immediately
+    const list = state.chats[state.activeChat.type];
+    const chatIndex = list.findIndex(c => (c.id || c._id) === state.activeChat.id);
+    if (chatIndex !== -1) {
+        list[chatIndex].lastMessage = message;
+        list[chatIndex].lastMessageTime = new Date().toISOString();
+        renderChatList(state.activeChat.type);
+    }
+    
+    messageInput.value = '';
+}
+
+// Socket events with proper real-time message handling
+function setupSocketListeners() {
+    socket.on('connect', () => {
+        connectionStatusDiv.textContent = 'Connected';
+        connectionStatusDiv.className = 'status-connected';
+        fetchAllChatLists();
+    });
+    
+    socket.on('disconnect', () => {
+        connectionStatusDiv.textContent = 'Disconnected';
+        connectionStatusDiv.className = 'status-disconnected';
+        messageInput.disabled = true;
+        sendMessageBtn.disabled = true;
+    });
+    
+    socket.on('connect_error', (error) => {
+        connectionStatusDiv.textContent = 'Connection Failed';
+        connectionStatusDiv.className = 'status-disconnected';
+    });
+    
+    socket.on('chatUpdated', (updatedChat) => {
+        console.log('Chat updated received:', updatedChat);
+        
+        const list = state.chats[updatedChat.type];
+        const chatId = updatedChat.id || updatedChat._id;
+        const idx = list.findIndex(c => (c.id || c._id) === chatId);
+        
+        if (idx !== -1) {
+            // Merge the updated chat data
+            list[idx] = { ...list[idx], ...updatedChat };
+        } else {
+            list.unshift(updatedChat);
+        }
+        
+        renderChatList(updatedChat.type);
+    });
+    
+    socket.on('chatListShouldUpdate', (data) => {
+        console.log('Chat list should update:', data);
+        fetchApi(`/messages/conversations?type=${data.chatType}`).then(list => {
+            state.chats[data.chatType] = list.results || list.data || list || [];
+            renderChatList(data.chatType);
+        }).catch(console.error);
+    });
+    
+    socket.on('newMessage', (msg) => {
+        console.log('New message received:', msg);
+        
+        const chatId = msg.problemId || msg.supportId || msg.chatId;
+        const chatType = msg.problemId ? 'problem' : 'support';
+        const messageText = msg.message || msg.text || msg.content;
+        const senderId = msg.senderId || msg.sender?.id || msg.userId;
+        
+        // 1. Update chat list last message
+        updateChatListLastMessage(chatType, chatId, messageText, msg.timestamp);
+        
+        // 2. If this is the active chat, add message to view in REAL-TIME
+        if (state.activeChat && state.activeChat.id === chatId) {
+            addMessageToChatHistory(messageText, senderId);
+            
+            // 3. Mark as read if message is from others
+            if (senderId !== state.currentUserId && socket.connected) {
+                markChatAsRead(chatType, chatId);
             }
-        });
-
-        sendMessageBtn.addEventListener('click', () => {
-            if (!socket || !socket.connected) {
-                errorMessage.textContent = 'Please connect first.';
-                return;
-            }
-
-            const senderId = document.getElementById('sender-id').value;
-            const message = document.getElementById('message-input').value;
-            const chatType = document.getElementById('chat-type').value;
-            const roomId = document.getElementById('room-id').value;
-
-            const payload = {
-                chatType,
-                senderId,
-                message
-            };
-
-            if (chatType === 'problem') {
-                payload.problemId = roomId;
-            }
-            else {
-                payload.supportId = roomId;
-            }
-
-            socket.emit('sendMessage', payload);
-            document.getElementById('message-input').value = '';
-        });
-
-    </script>
+        }
+    });
+}
+</script>
 </body>
 </html>

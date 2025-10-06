@@ -29,20 +29,20 @@ export const createMessage = catchAsync(async (req, res, next) => {
     senderId,
     message,
     imageUrl,
+    senderRole: req.user.role,
   });
 
   // --- Notification Logic ---
-  let recipientId;
-  let notificationMessage;
+  let recipientIdForNotification = null;
 
   if (chatType === 'problem') {
     const problem = await Problem.findById(problemId).populate('customerId');
     if (problem) {
-      if (req.user.role === 'admin') {
-        recipientId = problem.customerId;
+      if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+        recipientIdForNotification = problem.customerId;
       } else {
         // Notify all admins
-        const admins = await User.find({ role: 'admin' });
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
         for (const admin of admins) {
           await notificationService.createNotification({
             recipientId: admin._id,
@@ -57,11 +57,11 @@ export const createMessage = catchAsync(async (req, res, next) => {
   } else if (chatType === 'support') {
     const support = await Support.findById(supportId).populate('createdBy');
     if (support) {
-      if (req.user.role === 'admin') {
-        recipientId = support.createdBy;
+      if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+        recipientIdForNotification = support.createdBy;
       } else {
         // Notify all admins
-        const admins = await User.find({ role: 'admin' });
+        const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
         for (const admin of admins) {
           await notificationService.createNotification({
             recipientId: admin._id,
@@ -75,9 +75,9 @@ export const createMessage = catchAsync(async (req, res, next) => {
     }
   }
 
-  if (recipientId) {
+  if (recipientIdForNotification) {
     await notificationService.createNotification({
-      recipientId,
+      recipientId: recipientIdForNotification,
       senderId,
       type: 'new_message',
       problemId,
