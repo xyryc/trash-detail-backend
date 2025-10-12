@@ -20,6 +20,13 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Problem'
   },
+  supportId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Support'
+  },
+  id: {
+    type: String
+  },
   message: {
     type: String,
     required: true

@@ -14,8 +14,8 @@ export const createSupport = catchAsync(async (req, res, next) => {
 
   const newSupport = await supportService.createSupport({ title, details, createdBy });
 
-  // Create a notification for all admins
-  const admins = await User.find({ role: 'admin' });
+  // Create a notification for all admins and superadmins
+  const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
   if (admins && admins.length > 0) {
     for (const admin of admins) {
       await notificationService.createNotification({
@@ -23,7 +23,8 @@ export const createSupport = catchAsync(async (req, res, next) => {
         senderId: createdBy,
         type: 'new_support',
         supportId: newSupport._id,
-        message: `New support ticket #${newSupport._id} has been created by ${req.user.name || req.user.email}.`
+        id:newSupport.supportId,
+        message: `New support ticket #${newSupport.supportId} has been created by ${req.user.name || req.user.email}.`
       });
     }
   }
@@ -66,6 +67,7 @@ export const closeSupport = catchAsync(async (req, res, next) => {
       senderId: req.user._id, // Assuming the user closing the ticket is an admin
       type: 'status_update',
       supportId: updatedSupport._id,
+      id:updatedSupport.supportId,
       message: `Your support ticket #${updatedSupport.supportId} has been closed.`
     });
   }

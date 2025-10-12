@@ -55,6 +55,7 @@ next(new Error('Authentication error'));
         console.error('Invalid joinRoom data', data);
         return;
       }
+
       socket.join(roomName);
       console.log(`User ${socket.user.email} joined room: ${roomName}`);
     });
@@ -184,7 +185,7 @@ socket.on('stop_typing', (data) => {
         senderRole: sender.role,
       });
 
-      console.log(newMessage);
+      console.log("New message: ", newMessage);
 
    // 3. Emit new message to the room for live chatting
 const roomName = `${chatType}_${chatId}`;
@@ -224,6 +225,27 @@ if (isAdminSender) {
 
   io.to("admins").emit("chatUpdated", chatDetails);
   console.log("Emitting chatUpdated for admins", chatType, chatId);
+
+    // Also, calculate and emit the updated user summary for the sender
+    const userSummary = await messageService.getUserChatSummary({ userId: sender._id, chatType });
+    if (userSummary) {
+      io.to("admins").emit("userSummaryUpdated", userSummary);
+      console.log("Emitting userSummaryUpdated for admins", userSummary);
+
+      // NEW: Update the full conversation list for all admins
+      try {
+        const adminSockets = await io.in('admins').fetchSockets();
+        for (const adminSocket of adminSockets) {
+          const adminUser = adminSocket.user;
+          const updatedConversations = await messageService.getChatList({ type: chatType, user: adminUser });
+          adminSocket.emit('conversationsUpdated', { type: chatType, conversations: updatedConversations });
+          console.log(`Emitted conversationsUpdated to admin ${adminUser.email}`);
+        }
+      } catch (error) {
+        console.error('Error emitting conversationsUpdated to admins:', error);
+      }
+    }
+
 }});
 
     socket.on('markChatAsRead', async (data) => {
@@ -245,6 +267,24 @@ if (isAdminSender) {
       // 3. Send the updated details back to the user who requested it
       if (updatedChatDetails) {
         socket.emit('chatUpdated', updatedChatDetails);
+      }
+
+      // 4. NEW: Update the full conversation list for admins after marking as read
+      try {
+        const adminSockets = await io.in('admins').fetchSockets();
+        for (const adminSocket of adminSockets) {
+          const adminUser = adminSocket.user;
+          // Update both problem and support lists, as we don't know which one the user was looking at
+          const updatedProblemConversations = await messageService.getChatList({ type: 'problem', user: adminUser });
+          adminSocket.emit('conversationsUpdated', { type: 'problem', conversations: updatedProblemConversations });
+
+          const updatedSupportConversations = await messageService.getChatList({ type: 'support', user: adminUser });
+          adminSocket.emit('conversationsUpdated', { type: 'support', conversations: updatedSupportConversations });
+
+          console.log(`Emitted conversationsUpdated to admin ${adminUser.email} after markAsRead`);
+        }
+      } catch (error) {
+        console.error('Error emitting conversationsUpdated to admins after markAsRead:', error);
       }
     });
       console.log('user disconnected');

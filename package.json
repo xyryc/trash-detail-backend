@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "pm2 start src/server.js --name trashdetail-backend --watch --restart-delay 3000",
     "dev": "nodemon server.js"
   },
   "keywords": [],
@@ -24,6 +24,7 @@
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^7.0.5",
+    "pm2": "^6.0.13",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {

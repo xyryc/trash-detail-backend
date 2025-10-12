@@ -142,3 +142,19 @@ export const getChatList = catchAsync(async (req, res, next) => {
     data: chatList,
   });
 });
+
+export const getConversationsByUserId = catchAsync(async (req, res, next) => {
+  const { type } = req.query;
+  const { userId } = req.params;
+
+  if (!type || (type !== 'problem' && type !== 'support')) {
+    return next(new ApiError(400, 'Please provide a valid chat type: problem or support'));
+  }
+
+  const chatList = await messageService.getConversationsByUserId({ type, userId });
+
+  res.status(200).json({
+    success: true,
+    data: chatList,
+  });
+});

@@ -15,6 +15,7 @@ export const createNotification = async (notificationBody) => {
  * @returns {Promise<Notification[]>}
  */
 export const getNotificationsByUserId = async (userId) => {
+  console.log(userId)
   return Notification.find({ recipientId: userId }).sort({ createdAt: -1 });
 };
 

@@ -37,8 +37,8 @@ export const createProblem = catchAsync(async (req, res, next) => {
     customerId
   });
 
-  // Create a notification for all admins
-  const admins = await User.find({ role: 'admin' });
+  // Create a notification for all admins and superadmins
+  const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
   if (admins && admins.length > 0) {
     for (const admin of admins) {
       await notificationService.createNotification({
@@ -46,6 +46,7 @@ export const createProblem = catchAsync(async (req, res, next) => {
         senderId: employeeId,
         type: 'new_problem',
         problemId: newProblem._id,
+        id:newProblem.problemId,
         message: `New problem #${newProblem.problemId} has been created by an employee.`
       });
     }
@@ -140,6 +141,7 @@ export const updateProblemStatus = catchAsync(async (req, res, next) => {
         senderId: req.user._id,
         type: 'status_update',
         problemId: updatedProblem._id,
+        id:updatedProblem.problemId,
         message: `The status of a problem you created (#${updatedProblem.problemId}) has been updated to ${status}.`
       });
     }
@@ -151,6 +153,7 @@ export const updateProblemStatus = catchAsync(async (req, res, next) => {
         senderId: req.user._id, // Assuming the user updating the status is an admin
         type: 'new_problem',
         problemId: updatedProblem._id,
+        id:updatedProblem.problemId,
         message: `Your problem #${updatedProblem.problemId} status has been updated to ${status}.`
       });
     }
@@ -160,6 +163,7 @@ export const updateProblemStatus = catchAsync(async (req, res, next) => {
         senderId: req.user._id,
         type: 'status_update',
         problemId: updatedProblem._id,
+        id:updatedProblem.problemId,
         message: `The status of a problem you created (#${updatedProblem.problemId}) has been updated to ${status}.`
       });
     }
@@ -210,8 +214,9 @@ export const closeProblem = catchAsync(async (req, res, next) => {
     await notificationService.createNotification({
       recipientId: customer._id,
       senderId: req.user._id, // Assuming the user updating the status is an admin
-      type: 'problem_closed',
+      type: 'status_update',
       problemId: updatedProblem._id,
+      id:updatedProblem.problemId,
       message: `Your problem #${updatedProblem.problemId} has been closed.`
     });
   }
@@ -221,8 +226,9 @@ export const closeProblem = catchAsync(async (req, res, next) => {
     await notificationService.createNotification({
       recipientId: employee._id,
       senderId: req.user._id,
-      type: 'problem_closed',
+      type: 'status_update',
       problemId: updatedProblem._id,
+      id:updatedProblem.problemId,
       message: `The problem #${updatedProblem.problemId} you created has been closed.`
     });
   }

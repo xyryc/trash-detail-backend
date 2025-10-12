@@ -68,8 +68,8 @@ export const getMessagesByProblemId = async (problemId) => {
       title: problem.title,
       status: problem.status,
     },
-    customerInfo: {
-      customerId: customer.userId,
+    createdByInfo: {
+      createdById: customer.userId,
       name: customer.name,
       email: customer.email,
       number: customer.number,
@@ -435,8 +435,140 @@ export const markAllMessagesAsRead = async (chatType, chatId, userId) => {
 };
 
 export const getChatList = async ({ type, user } = {}) => {
-  let chatList = [];
   const userObjectId = user._id;
+
+  if ((user.role === 'admin' || user.role === 'superadmin')) {
+    if (type === 'problem') {
+      const problemChats = await Problem.aggregate([
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'customerId',
+            foreignField: 'userId',
+            as: 'customer'
+          }
+        },
+        { $unwind: '$customer' },
+        {
+          $lookup: {
+            from: 'messages',
+            localField: '_id',
+            foreignField: 'problemId',
+            as: 'messages'
+          }
+        },
+        {
+          $addFields: {
+            incomingMessages: {
+              $size: {
+                $filter: {
+                  input: "$messages",
+                  as: "message",
+                  cond: {
+                    $and: [
+                      { $not: { $in: [user._id, { $ifNull: ["$$message.readBy", []] }] } },
+                      { $ne: ["$$message.senderId", user._id] }
+                    ]
+                  }
+                }
+              }
+            },
+              lastMessageTimeForChat: { $max: "$messages.createdAt" }  
+          }
+        },
+        {
+          $group: {
+            _id: '$customer._id',
+            name: { $first: '$customer.name' },
+            role: { $first: '$customer.role' },
+            userId: { $first: '$customer.userId' },
+            incomingMessages: { $sum: '$incomingMessages' },
+             lastMessageTime: { $max: '$lastMessageTimeForChat' } 
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            user: {
+              id: '$_id',
+              name: '$name',
+              role: '$role',
+              userId: '$userId'
+            },
+            incomingMessages: '$incomingMessages',
+            lastMessageTime: '$lastMessageTime'
+          }
+        }
+      ]);
+      return problemChats;
+    } else if (type === 'support') {
+      const supportChats = await Support.aggregate([
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'createdBy',
+            foreignField: '_id',
+            as: 'customer'
+          }
+        },
+        { $unwind: '$customer' },
+        {
+          $lookup: {
+            from: 'messages',
+            localField: '_id',
+            foreignField: 'supportId',
+            as: 'messages'
+          }
+        },
+        {
+          $addFields: {
+            incomingMessages: {
+              $size: {
+                $filter: {
+                  input: "$messages",
+                  as: "message",
+                  cond: {
+                    $and: [
+                      { $not: { $in: [user._id, { $ifNull: ["$$message.readBy", []] }] } },
+                      { $ne: ["$$message.senderId", user._id] }
+                    ]
+                  }
+                }
+              }
+            },
+              lastMessageTimeForChat: { $max: "$messages.createdAt" }  
+          }
+        },
+        {
+          $group: {
+            _id: '$customer._id',
+            name: { $first: '$customer.name' },
+            role: { $first: '$customer.role' },
+            userId: { $first: '$customer.userId' },
+            incomingMessages: { $sum: '$incomingMessages' },
+             lastMessageTime: { $max: '$lastMessageTimeForChat' } 
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            user: {
+              id: '$_id',
+              name: '$name',
+              role: '$role',
+              userId: '$userId'
+            },
+            incomingMessages: '$incomingMessages',
+            lastMessageTime: '$lastMessageTime'
+          }
+        }
+      ]);
+      return supportChats;
+    }
+  }
+
+
+  let chatList = [];
 
   // Logic for Problem Chats
   if (!type || type === 'problem') {
@@ -572,3 +704,251 @@ export const getChatList = async ({ type, user } = {}) => {
   return chatList;
 };
 
+export const getConversationsByUserId = async ({ type, userId }) => {
+  let chatList = [];
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  if (type === 'problem') {
+    const problemMatchQuery = { 'customer._id': userObjectId };
+
+    const problemChats = await Problem.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'customerId',
+          foreignField: 'userId',
+          as: 'customer'
+        }
+      },
+      { $unwind: '$customer' },
+      { $match: problemMatchQuery },
+      {
+        $lookup: {
+          from: 'messages',
+          localField: '_id',
+          foreignField: 'problemId',
+          as: 'messages'
+        }
+      },
+      {
+        $addFields: {
+          lastMessageObj: { $arrayElemAt: [{ $sortArray: { input: "$messages", sortBy: { createdAt: -1 } } }, 0] },
+          incomingMessages: {
+            $size: {
+              $filter: {
+                input: "$messages",
+                as: "message",
+                cond: {
+                  $and: [
+                    { $not: { $in: [userObjectId, { $ifNull: ["$$message.readBy", []] } ] } },
+                    { $ne: ["$$message.senderId", userObjectId] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          id: '$_id',
+          problemId: '$problemId',
+          type: { $literal: 'problem' },
+          title: '$title',
+          status: '$status',
+          createdAt: '$createdAt',
+          customer: { id: '$customer._id', name: '$customer.name', role: '$customer.role', customerId: '$customer.userId', customerNumber: '$customer.number' },
+          lastMessage: { $ifNull: ['$lastMessageObj.message', null] },
+          lastMessageTime: { $ifNull: ['$lastMessageObj.createdAt', '$createdAt'] },
+          incomingMessages: '$incomingMessages'
+        }
+      }
+    ]);
+    chatList = chatList.concat(problemChats);
+  }
+
+  if (type === 'support') {
+    const supportMatchQuery = { createdBy: userObjectId };
+
+    const supportChats = await Support.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'customer'
+        }
+      },
+      { $unwind: '$customer' },
+      { $match: supportMatchQuery },
+      {
+        $lookup: {
+          from: 'messages',
+          localField: '_id',
+          foreignField: 'supportId',
+          as: 'messages'
+        }
+      },
+      {
+        $addFields: {
+          lastMessageObj: { $arrayElemAt: [{ $sortArray: { input: "$messages", sortBy: { createdAt: -1 } } }, 0] },
+          incomingMessages: {
+            $size: {
+              $filter: {
+                input: "$messages",
+                as: "message",
+                cond: {
+                  $and: [
+                    { $not: { $in: [userObjectId, { $ifNull: ["$$message.readBy", []] } ] } },
+                    { $ne: ["$$message.senderId", userObjectId] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          id: '$_id',
+          supportId: '$supportId',
+          type: { $literal: 'support' },
+          title: '$title',
+          status: '$status',
+          createdAt: '$createdAt',
+          customer: { id: '$customer._id', name: '$customer.name', role: '$customer.role', customerId: '$customer.userId', customerNumber: '$customer.number' },
+          lastMessage: { $ifNull: ['$lastMessageObj.message', null] },
+          lastMessageTime: { $ifNull: ['$lastMessageObj.createdAt', '$createdAt'] },
+          incomingMessages: '$incomingMessages'
+        }
+      }
+    ]);
+    chatList = chatList.concat(supportChats);
+  }
+
+  chatList.sort((a, b) => (b.lastMessageTime || b.createdAt) - (a.lastMessageTime || a.createdAt));
+
+  return chatList;
+}
+
+export const getUserChatSummary = async ({ userId, chatType }) => {
+  try {
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return null;
+    }
+
+    // Get admin users
+    const adminUsers = await User.find({ role: { $in: ['admin', 'superadmin'] } }).lean();
+    const adminIds = adminUsers.map(admin => admin._id);
+
+    let chatModel;
+    let chatQuery;
+
+    if (chatType === 'problem') {
+      chatModel = Problem;
+      const participatedProblemIds = await Message.distinct('problemId', {
+        senderId: user._id,
+        chatType: 'problem',
+        problemId: { $ne: null },
+      });
+
+      chatQuery = {
+        $or: [
+          { customerId: user.userId },
+          { employeeId: user._id },
+          { _id: { $in: participatedProblemIds } },
+        ],
+      };
+    } else {
+      chatModel = Support;
+      const participatedSupportIds = await Message.distinct('supportId', {
+        senderId: user._id,
+        chatType: 'support',
+        supportId: { $ne: null },
+      });
+
+      chatQuery = {
+        $or: [{ createdBy: user._id }, { _id: { $in: participatedSupportIds } }],
+      };
+    }
+
+    console.log(`Looking for ${chatType} chats with query:`, chatQuery);
+
+    // Get all chats for this user
+    const chats = await chatModel.find(chatQuery).lean();
+    console.log(`Found ${chats.length} ${chatType} chats:`, chats.map(chat => ({
+      id: chat._id,
+      createdBy: chat.createdBy,
+      userId: chat.userId,
+      customerId: chat.customerId
+    })));
+    
+    if (chats.length === 0) {
+      return {
+        user: {
+          id: user._id,
+          name: user.name,
+          role: user.role,
+          userId: user.userId
+        },
+        incomingMessages: 0,
+        lastMessageTime: null
+      };
+    }
+
+    const chatIds = chats.map(chat => chat._id);
+    const messageField = chatType === 'problem' ? 'problemId' : 'supportId';
+
+    // Get all messages for these chats, sorted by creation date
+    const messages = await Message.find({
+      [messageField]: { $in: chatIds }
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+    console.log(`Found ${messages.length} messages for ${chatType} chats`);
+
+    // Calculate unread messages and last message time
+    let incomingMessages = 0;
+    let lastMessageTime = null;
+
+    for (const message of messages) {
+      // Update last message time if this is the latest
+      if (!lastMessageTime || message.createdAt > lastMessageTime) {
+        lastMessageTime = message.createdAt;
+      }
+
+      // Check if message is from admin and unread by this user
+      const isFromAdmin = adminIds.some(adminId => 
+        adminId.toString() === message.senderId.toString()
+      );
+      
+      const isRead = message.readBy && message.readBy.some(readByUserId => 
+        readByUserId.toString() === user._id.toString()
+      );
+
+      if (isFromAdmin && !isRead) {
+        incomingMessages++;
+      }
+    }
+
+    const result = {
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        userId: user.userId
+      },
+      incomingMessages,
+      lastMessageTime
+    };
+
+    console.log('Final user summary:', result);
+    return result;
+
+  } catch (error) {
+    console.error('Error in getUserChatSummary:', error);
+    return null;
+  }
+};
