@@ -8,6 +8,8 @@ const router = express.Router();
 // The POST route is for the superadmin to create any user
 router.post('/', protect, restrictTo('superadmin'), createUser);
 
+// create user without authentication
+// router.post('/', createUser);
 
 // All routes below this point require authentication
 router.use(protect);
