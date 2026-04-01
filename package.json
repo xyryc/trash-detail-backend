@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "pm2 start src/server.js --name trashdetail-backend --watch --restart-delay 3000",
-    "dev": "nodemon server.js"
+    "dev": "nodemon src/server.js"
   },
   "keywords": [],
   "author": "",
@@ -31,3 +31,4 @@
     "nodemon": "^3.1.10"
   }
 }
+
