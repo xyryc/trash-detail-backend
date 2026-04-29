@@ -39,6 +39,9 @@ app.get('/', (req, res) => {
   res.send('Trash Detail Backend API Running');
 });
 
+// Static assets (used by emails, etc.)
+app.use('/public', express.static(path.join(__dirname, '../public')));
+
 // Mount routes
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/auth', authRoutes);

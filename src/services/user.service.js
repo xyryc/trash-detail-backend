@@ -3,6 +3,8 @@ import ApiError from '../utils/ApiError.js';
 import sendEmail from '../utils/sendEmail.js';
 
 const sendAccountCreationEmail = async (user, password) => {
+  const assetBaseUrl =
+    process.env.PUBLIC_ASSET_BASE_URL ?? 'https://api.trashdetailnc.com/public';
   const subject = 'Your Account Has Been Created!';
   const html = `
    <!DOCTYPE html>
@@ -35,10 +37,11 @@ const sendAccountCreationEmail = async (user, password) => {
             font-weight: 700;
             letter-spacing: 1px;
         }
-        .trash-icon {
-            font-size: 36px;
+        .logo-image {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 12px;
             display: block;
-            margin-bottom: 10px;
         }
         .content {
             padding: 40px;
@@ -87,12 +90,27 @@ const sendAccountCreationEmail = async (user, password) => {
             border-radius: 4px;
             font-weight: 600;
         }
+        .store-badges {
+            margin: 22px 0 10px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .store-badges a {
+            border-bottom: none;
+        }
+        .store-badges img {
+            height: 44px;
+            width: auto;
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="trash-icon">🗑️</div>
+            <img src="${assetBaseUrl}/icon.png" alt="Trash Detail" class="logo-image" />
             <div class="logo">TRASH DETAIL</div>
         </div>
         
@@ -103,15 +121,21 @@ const sendAccountCreationEmail = async (user, password) => {
             <p>Please use the following credentials to access your account:</p>
             
             <div class="credentials">
-                <p><strong>Login URL:</strong> https://app.trashdetail.com/login</p>
-                <p><strong>Email:</strong>${user.email}</p>
-                <p><strong>Email:</strong>${user.role}</p>
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Role:</strong> ${user.role}</p>
                 <p><strong>Temporary Password:</strong> <span class="highlight">${password}</span></p>
             </div>
             
             <p>For security, please change your password after first login.</p>
-            
-            <a href="https://app.trashdetail.com/login" class="btn">Login to Your Account</a>
+
+            <div class="store-badges">
+                <a href="https://apps.apple.com/us/app/trash-detail/id6762623763" target="_blank" rel="noopener">
+                    <img src="${assetBaseUrl}/app_store.png" alt="Download on the App Store" />
+                </a>
+                <a href="https://play.google.com/store/apps/details?id=com.caitlan.trashdetail" target="_blank" rel="noopener">
+                    <img src="${assetBaseUrl}/play_store.png" alt="Get it on Google Play" />
+                </a>
+            </div>
             
             <p>With Trash Detail, you can:</p>
             <ul>
@@ -121,13 +145,20 @@ const sendAccountCreationEmail = async (user, password) => {
                 <li>Access waste analytics in your area</li>
             </ul>
             
-            <p>Need help? Reply to this email or contact support@trashdetail.com</p>
+            <p>Need help? Reply to this email or contact trashdetail@gmail.com</p>
         </div>
         
         <div class="footer">
-            <p>© 2023 Trash Detail. All rights reserved.</p>
-            <p>123 Green Street, Eco City | support@trashdetail.com</p>
-            <p><a href="#" style="color: #43A047;">Unsubscribe</a> | <a href="#" style="color: #43A047;">Privacy Policy</a></p>
+            <p>©2018 by Trash Detail, LLC</p>
+            <p>For support: North Carolina, South Carolina &amp; Southeast Virginia</p>
+            <p>Email: trashdetail@gmail.com | Phone: 252-256-2139 or 252-202-5777</p>
+            <p>1104 W Colonial Ave, Elizabeth City, 27909-4112, United States</p>
+            <p><a href="https://www.trashdetailnc.com/" style="color: #43A047;">trashdetailnc.com</a></p>
+            <p>
+                <a href="https://www.trashdetailnc.com/privacy-policy" style="color: #43A047;">Privacy Policy</a>
+                |
+                <a href="https://www.trashdetailnc.com/terms-and-conditions" style="color: #43A047;">Terms &amp; Conditions</a>
+            </p>
         </div>
     </div>
 </body>
