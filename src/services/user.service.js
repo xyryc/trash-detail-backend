@@ -40,6 +40,9 @@ const sendAccountCreationEmail = async (user, password) => {
         .logo-image {
             width: 56px;
             height: 56px;
+            max-width: 56px;
+            max-height: 56px;
+            object-fit: contain;
             margin: 0 auto 12px;
             display: block;
         }
@@ -90,13 +93,6 @@ const sendAccountCreationEmail = async (user, password) => {
             border-radius: 4px;
             font-weight: 600;
         }
-        .store-badges {
-            margin: 22px 0 10px;
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
         .store-badges a {
             border-bottom: none;
         }
@@ -110,7 +106,7 @@ const sendAccountCreationEmail = async (user, password) => {
 <body>
     <div class="container">
         <div class="header">
-            <img src="${assetBaseUrl}/icon.png" alt="Trash Detail" class="logo-image" />
+            <img src="${assetBaseUrl}/icon.png" alt="Trash Detail" class="logo-image" style="width:56px;height:56px;max-width:56px;max-height:56px;object-fit:contain;display:block;margin:0 auto 12px;" />
             <div class="logo">TRASH DETAIL</div>
         </div>
         
@@ -128,14 +124,20 @@ const sendAccountCreationEmail = async (user, password) => {
             
             <p>For security, please change your password after first login.</p>
 
-            <div class="store-badges">
-                <a href="https://apps.apple.com/us/app/trash-detail/id6762623763" target="_blank" rel="noopener">
-                    <img src="${assetBaseUrl}/app_store.png" alt="Download on the App Store" />
-                </a>
-                <a href="https://play.google.com/store/apps/details?id=com.caitlan.trashdetail" target="_blank" rel="noopener">
-                    <img src="${assetBaseUrl}/play_store.png" alt="Get it on Google Play" />
-                </a>
-            </div>
+            <table class="store-badges" role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:22px auto 10px;">
+                <tr>
+                    <td style="padding:0 6px;">
+                        <a href="https://apps.apple.com/us/app/trash-detail/id6762623763" target="_blank" rel="noopener" style="border-bottom:none;text-decoration:none;">
+                            <img src="${assetBaseUrl}/app_store.png" alt="Download on the App Store" style="height:44px;width:auto;display:block;" />
+                        </a>
+                    </td>
+                    <td style="padding:0 6px;">
+                        <a href="https://play.google.com/store/apps/details?id=com.caitlan.trashdetail" target="_blank" rel="noopener" style="border-bottom:none;text-decoration:none;">
+                            <img src="${assetBaseUrl}/play_store.png" alt="Get it on Google Play" style="height:44px;width:auto;display:block;" />
+                        </a>
+                    </td>
+                </tr>
+            </table>
             
             <p>With Trash Detail, you can:</p>
             <ul>
